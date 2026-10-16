@@ -56,6 +56,7 @@ Regressão: `npm test` com 283 testes passando (inclui exportador real e store d
 - Rodar `npm audit` periodicamente (por exemplo a cada deploy) e atualizar dentro dos intervalos semver.
 - Manter o Node de produção em 22.12 ou superior (o Dockerfile `node:22-bookworm-slim` incluído neste repositório já satisfaz). Máquinas de desenvolvimento com Node < 22.12 passam a receber aviso de engines.
 - Chromium do contêiner: o `chromium` do Debian bookworm (imagem `node:22-bookworm-slim`) é mais antigo que o Chrome-alvo do `puppeteer-core` 25. O protocolo CDP costuma ser tolerante a essa diferença (risco baixo), mas isso não foi testado nesta máquina. **Antes da troca de tráfego**, rode `scripts/smoke-export.js` dentro do contêiner reconstruído, com `CHROMIUM_PATH=/usr/bin/chromium` (já definido na imagem) e `CHROMIUM_NO_SANDBOX=1` se estiver rodando como o usuário `node`: `docker exec boletim node scripts/smoke-export.js /tmp/smoke` (ver `deploy/docker/README.md`).
+- Risco: o bookworm é o Debian "oldstable" e o `chromium` dele pode ficar atrás das correções de segurança do upstream. Reconstrua a imagem com frequência (`docker build --pull`) e avalie uma base Debian mais nova (por exemplo `node:22-trixie-slim`); o Dockerfile foi mantido em bookworm.
 - Testar o Chromium do servidor com `scripts/smoke-export.js` após atualizações do `puppeteer-core`, pois ele fala com o navegador por protocolo versionado.
 
 ## 6. Reproduzir

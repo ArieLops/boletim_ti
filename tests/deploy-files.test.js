@@ -76,21 +76,55 @@ function problemasDoSnippet(texto) {
   const problemas = [];
   const linhas = texto.split(/\r?\n/).map((l) => l.trim());
   let dentroIfModule = false;
+  let dentroLocation = false;
   for (const l of linhas) {
     if (!l || l.startsWith('#')) continue;
     if (!DIRETIVAS_PERMITIDAS.some((re) => re.test(l))) problemas.push('diretiva fora da lista permitida: ' + l);
     if (l === '<IfModule mod_headers.c>') dentroIfModule = true;
     if (l === '</IfModule>') dentroIfModule = false;
+    if (l === '<Location /boletim_ti/>') dentroLocation = true;
+    if (l === '</Location>') dentroLocation = false;
+    if (/^Require ip\b/.test(l) && !dentroLocation) problemas.push('Require ip fora de <Location /boletim_ti/>: ' + l);
+    if (/^ProxyPreserveHost\b/.test(l) && !dentroLocation) problemas.push('ProxyPreserveHost fora de <Location /boletim_ti/>: ' + l);
     if (/^RequestHeader\b/.test(l) && !dentroIfModule) problemas.push('RequestHeader fora de IfModule mod_headers.c: ' + l);
   }
   for (const exigido of [
     'ProxyPass /boletim_ti/ http://127.0.0.1:3100/boletim_ti/',
     'ProxyPassReverse /boletim_ti/ http://127.0.0.1:3100/boletim_ti/',
     'FAIXA_AUTORIZADA_AQUI',
+    '<Location /boletim_ti/>',
+    '</Location>',
   ]) {
     if (!texto.includes(exigido)) problemas.push('ausente: ' + exigido);
   }
   return problemas;
+}
+
+// Problemas do Dockerfile (lista vazia = ok).
+function problemasDoDockerfile(bruto) {
+  const texto = bruto.split('\n').filter((l) => !l.trim().startsWith('#')).join('\n'); // ignora comentários
+  const problemas = [];
+  for (const trecho of ['FROM node:22', 'USER node', 'HEALTHCHECK', '/usr/bin/chromium', 'npm ci --omit=dev', 'CMD ["node","src/server.js"]', 'HOST=0.0.0.0', 'EXPOSE 3000']) {
+    if (!texto.includes(trecho)) problemas.push('sem: ' + trecho);
+  }
+  if (/^\s*ENV\b.*(PASSWORD|SECRET)/im.test(texto)) problemas.push('ENV com senha/segredo');
+  return problemas;
+}
+
+// Comandos "docker run" (com continuação de linha "\") de um texto, opcionalmente só os que usam certa imagem.
+function comandosDockerRun(texto, imagem) {
+  const juntado = texto.replace(/\\\n\s*/g, ' ');
+  return juntado.split('\n').map((l) => l.trim()).filter((l) => /^docker run\b/.test(l) && (!imagem || l.includes(imagem)));
+}
+
+// Cada docker run (da imagem dada) precisa de --init e --shm-size (Chromium); devolve os que não têm.
+function runsSemInitOuShm(texto, imagem) {
+  return comandosDockerRun(texto, imagem).filter((c) => !/--init\b/.test(c) || !/--shm-size=\d+[mg]\b/.test(c));
+}
+
+// O backup do 000-default.conf precisa copiar o arquivo RESOLVIDO (em sites-enabled ele é link simbólico).
+function backupResolvido(texto) {
+  return texto.includes('cp -p "$(readlink -f /etc/apache2/sites-enabled/000-default.conf)"') && !/cp -a \/etc\/apache2\/sites-enabled\/000-default\.conf/.test(texto);
 }
 
 // ---------- testes ----------
@@ -101,11 +135,16 @@ test('arquivos de implantação existem', () => {
 
 test('Dockerfile: base, usuário, healthcheck, chromium e instalação sem devDependencies', () => {
   const d = ler('Dockerfile');
-  for (const trecho of ['FROM node:22', 'USER node', 'HEALTHCHECK', '/usr/bin/chromium', 'npm ci --omit=dev', 'CMD ["node","src/server.js"]']) {
-    assert.ok(d.includes(trecho), 'Dockerfile sem: ' + trecho);
-  }
-  assert.ok(!/^\s*ENV\b.*(PASSWORD|SECRET)/im.test(d), 'ENV com senha/segredo no Dockerfile');
+  assert.deepEqual(problemasDoDockerfile(d), []);
   assert.deepEqual(credenciaisSuspeitas(d), []);
+});
+
+test('verificador do Dockerfile pega erros (casos negativos)', () => {
+  const d = ler('Dockerfile');
+  assert.notDeepEqual(problemasDoDockerfile(d.replaceAll('HOST=0.0.0.0', 'HOST=127.0.0.1')), []);
+  assert.notDeepEqual(problemasDoDockerfile(d.replace('EXPOSE 3000', '')), []);
+  assert.notDeepEqual(problemasDoDockerfile(d.replace('USER node', '')), []);
+  assert.notDeepEqual(problemasDoDockerfile(d + '\nENV DB_PASSWORD=abc\n'), []);
 });
 
 test('.dockerignore exclui o que não vai para a imagem e mantém o necessário', () => {
@@ -144,6 +183,12 @@ test('verificador do snippet pega escopo indevido (casos negativos)', () => {
   assert.notDeepEqual(problemasDoSnippet(ok + '\nRequestHeader set X-Forwarded-Proto "https"\n'), []);
   assert.notDeepEqual(problemasDoSnippet(ok.replace('FAIXA_AUTORIZADA_AQUI', '10.0.0.0/8')), []);
   assert.notDeepEqual(problemasDoSnippet(ok.replace(/^ProxyPassReverse.*$/m, '')), []);
+  // sem as linhas do Location, o "Require ip" ficaria no escopo do vhost inteiro
+  const semLocation = ok.replace(/^\s*<\/?Location[^>]*>\s*$/gm, '');
+  assert.ok(problemasDoSnippet(semLocation).some((p) => p.includes('Require ip fora')));
+  assert.ok(problemasDoSnippet(semLocation).some((p) => p.startsWith('ausente: <Location')));
+  // Require ip antes do Location também é erro
+  assert.notDeepEqual(problemasDoSnippet('Require ip 10.0.0.0/8\n' + ok), []);
 });
 
 test('README do Apache: regra de exceção, configtest, reversão e avisos', () => {
@@ -160,6 +205,37 @@ test('README do Apache: regra de exceção, configtest, reversão e avisos', () 
   ]) {
     assert.ok(r.includes(trecho), 'README do Apache sem: ' + trecho);
   }
+});
+
+test('README do Apache: backup do arquivo resolvido (link simbólico) e HTTPS remove a exceção', () => {
+  const r = ler('deploy/apache/README.md');
+  assert.ok(backupResolvido(r), 'backup deve usar readlink -f');
+  assert.match(r, /DESTINO="\$\(readlink -f /, 'restauração deve usar o arquivo resolvido');
+  assert.match(r, /Remover.*RewriteCond %\{REQUEST_URI\} !\^\/boletim_ti/s);
+  assert.match(ler('deploy/ATUALIZACAO.md'), /DESTINO="\$\(readlink -f /);
+});
+
+test('verificador do backup pega cópia do link (caso negativo)', () => {
+  assert.equal(backupResolvido('sudo cp -a /etc/apache2/sites-enabled/000-default.conf /root/x'), false);
+  assert.equal(backupResolvido('sudo cp -p "$(readlink -f /etc/apache2/sites-enabled/000-default.conf)" /root/x'), true);
+  assert.equal(backupResolvido('sudo cp -p "$(readlink -f /etc/apache2/sites-enabled/000-default.conf)" /root/x\nsudo cp -a /etc/apache2/sites-enabled/000-default.conf /root/y'), false);
+});
+
+test('docker run dos guias usa --init e --shm-size', () => {
+  const dk = ler('deploy/docker/README.md');
+  assert.ok(comandosDockerRun(dk).length >= 2, 'esperava >= 2 exemplos de docker run');
+  assert.deepEqual(runsSemInitOuShm(dk), []);
+  const at = ler('deploy/ATUALIZACAO.md');
+  assert.ok(comandosDockerRun(at, 'boletim-senar:1.1').length >= 2);
+  assert.deepEqual(runsSemInitOuShm(at, 'boletim-senar:1.1'), []);
+});
+
+test('verificador de docker run pega falta de --init/--shm-size (casos negativos)', () => {
+  assert.equal(runsSemInitOuShm('docker run -d --name x img:1.1', 'img:1.1').length, 1);
+  assert.equal(runsSemInitOuShm('docker run -d --init --name x img:1.1', 'img:1.1').length, 1);
+  assert.equal(runsSemInitOuShm('docker run -d --shm-size=64 --init img:1.1', 'img:1.1').length, 1);
+  assert.equal(runsSemInitOuShm('docker run -d \\\n  --init \\\n  --shm-size=512m \\\n  img:1.1', 'img:1.1').length, 0);
+  assert.equal(runsSemInitOuShm('docker run -d img:1.0', 'img:1.1').length, 0);
 });
 
 test('README do Docker e guia de atualização', () => {

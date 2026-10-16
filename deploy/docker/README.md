@@ -54,10 +54,17 @@ Com o contêiner antigo parado (a porta 3100 não pode estar em uso; sequência 
 docker run -d \
   --name boletim \
   --restart unless-stopped \
+  --init \
+  --shm-size=512m \
   -p 127.0.0.1:3100:3000 \
   --env-file /etc/boletim/boletim.env \
   boletim-senar:1.1
 ```
+
+Por que `--shm-size=512m` e `--init`:
+
+- **`--shm-size=512m`** (use de 512m a 1g): o `/dev/shm` padrão do Docker tem 64 MB e o Chromium usa memória compartilhada para renderizar; com 64 MB, capturas altas e PDFs falham com "Target closed"/"page crashed". É a **primeira** providência se a exportação falhar (seção 5).
+- **`--init`**: coloca um init mínimo como PID 1 para encerrar processos órfãos do Chromium (zumbis) e repassar sinais ao Node.
 
 Verificação:
 
@@ -69,7 +76,8 @@ curl -i http://127.0.0.1:3100/boletim_ti/saude      # 200 {"ok":true}
 curl -i http://127.0.0.1:3100/boletim_ti/login      # 200 e Set-Cookie: boletim.sid=...; Path=/boletim_ti
 curl -i http://127.0.0.1:3100/boletim_ti/           # 302 Location: /boletim_ti/login (sem sessão)
 curl -i http://127.0.0.1:3100/login                 # 404: fora do prefixo o app não responde
-ss -ltnp | grep 3100                                # deve mostrar 127.0.0.1:3100, nunca 0.0.0.0
+docker port boletim                                 # deve mostrar 127.0.0.1:3100, nunca 0.0.0.0
+# (ss -ltnp | grep 3100 pode não mostrar nada se o userland-proxy do Docker estiver desligado; use docker port e curl)
 ```
 
 Se o contêiner reiniciar em laço, `docker logs boletim` mostra a causa; um `BASE_PATH` inválido ou variável obrigatória ausente impede a subida (comportamento esperado).
@@ -88,12 +96,18 @@ docker cp boletim:/tmp/smoke ./smoke-boletim                     # copia os arqu
 ls -l ./smoke-boletim
 ```
 
-Abra o PDF e os PNGs: o final do bloco "Dica" (“Teste de glifos”) deve mostrar ícones/emoji, não quadrados. Se a falha for de sandbox do Chromium, defina `CHROMIUM_NO_SANDBOX=1` no env-file e recrie o contêiner. Se falhar de outra forma (protocolo/versão do Chromium), **não troque o tráfego**: volte ao `boletim-senar:1.0` e reporte o erro.
+Abra o PDF e os PNGs: o final do bloco "Dica" (“Teste de glifos”) deve mostrar ícones/emoji, não quadrados.
+
+Se a exportação falhar, nesta ordem:
+
+1. **`/dev/shm` pequeno** (sintoma: "Target closed", "page crashed", falha só em páginas altas): confirme que o contêiner foi criado com `--shm-size=512m` (ou 1g). `docker inspect -f '{{.HostConfig.ShmSize}}' boletim` deve mostrar 536870912 ou mais (o padrão, 67108864, é pouco).
+2. **Sandbox do Chromium** (sintoma: erro de namespace/"No usable sandbox"): defina `CHROMIUM_NO_SANDBOX=1` no env-file e recrie o contêiner.
+3. Outra falha (protocolo/versão do Chromium): **não troque o tráfego**; volte ao `boletim-senar:1.0` e reporte o erro.
 
 Para testar a imagem sem tocar no contêiner em produção, use um contêiner descartável (sem publicar porta e sem banco):
 
 ```bash
-docker run --rm -e CHROMIUM_NO_SANDBOX=1 boletim-senar:1.1 node scripts/smoke-export.js /tmp/smoke
+docker run --rm --init --shm-size=512m -e CHROMIUM_NO_SANDBOX=1 boletim-senar:1.1 node scripts/smoke-export.js /tmp/smoke
 ```
 
 ## 6. Notas
@@ -102,3 +116,5 @@ docker run --rm -e CHROMIUM_NO_SANDBOX=1 boletim-senar:1.1 node scripts/smoke-ex
 - O `HEALTHCHECK` usa `fetch` do Node 22 (`node -e`); não depende de `curl` na imagem.
 - Tamanho esperado da imagem: algumas centenas de MB (Chromium e fontes).
 - Atualizações de segurança do Debian entram ao reconstruir a imagem (`docker build --pull`).
+- **Risco do Chromium do Debian:** o bookworm é a versão "oldstable" do Debian e o pacote `chromium` dele pode ficar atrás das correções de segurança do upstream. Mantenha a imagem reconstruída com frequência e avalie mover a base para um Debian mais novo (por exemplo `node:22-trixie-slim`). O `Dockerfile` atual foi mantido em bookworm.
+- O `env-file` do Docker é só para o contêiner: não copie para ele `HOST=127.0.0.1` nem `CHROMIUM_PATH=/usr/bin/google-chrome-stable` do `deploy/boletim.env.example` (que é para uso com systemd). A imagem define `HOST=0.0.0.0` e `CHROMIUM_PATH=/usr/bin/chromium`, e esses valores precisam prevalecer (variáveis do `--env-file` sobrescrevem as do `ENV` da imagem).
