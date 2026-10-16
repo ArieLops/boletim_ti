@@ -335,7 +335,30 @@ test('verificador de /root sem sudo pega erros (casos negativos)', () => {
   assert.equal(ruim('cat /root/a | sudo tee /etc/x').length, 1);
   assert.equal(ruim('sudo ls -l /root/apache-backups/').length, 0);
   assert.equal(ruim("sudo sh -c 'file /root/apache-backups/x.*'").length, 0);
-  assert.equal(ruim('sudo cp -p /etc/a \\n  /root/b').length, 0); // continuação
-  assert.equal(ruim('cp /etc/a \\n  /root/b').length, 1);
+  assert.equal(ruim('sudo cp -p /etc/a \\\n  /root/b').length, 0); // continuação
+  assert.equal(ruim('cp /etc/a \\\n  /root/b').length, 1);
   assert.equal(ruim('# ls /root/x (comentário)').length, 0);
+});
+
+// O rollback só pode remover $NOVO depois de checar que a imagem é a 1.1 (NOVO pode ser o próprio 1.0).
+function rollbackComGuard(texto) {
+  const i = texto.indexOf('## Rollback');
+  if (i < 0) return false;
+  const sec = texto.slice(i);
+  const rm = sec.indexOf('docker rm "$NOVO"');
+  const guard = sec.indexOf('= "boletim-senar:1.1"');
+  return rm >= 0 && guard >= 0 && guard < rm && sec.includes("docker inspect -f '{{.Config.Image}}'");
+}
+
+test('rollback checa a imagem 1.1 antes de remover $NOVO', () => {
+  assert.ok(rollbackComGuard(ler('deploy/ATUALIZACAO.md')));
+});
+
+test('verificador do guard de rollback (casos negativos)', () => {
+  const guard = "IMG=\"$(docker inspect -f '{{.Config.Image}}' \"$NOVO\")\"\nif [ \"$IMG\" = \"boletim-senar:1.1\" ]; then\n";
+  const rm = 'docker rm "$NOVO"\n';
+  assert.equal(rollbackComGuard('## Rollback\n' + guard + rm), true);
+  assert.equal(rollbackComGuard('## Rollback\ndocker stop "$NOVO" && ' + rm), false);
+  assert.equal(rollbackComGuard('## Rollback\n' + rm + guard), false);
+  assert.equal(rollbackComGuard(guard + rm), false);
 });

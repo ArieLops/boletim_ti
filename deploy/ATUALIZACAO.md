@@ -176,7 +176,7 @@ Validação (matriz completa no README do Apache):
 
 ## Rollback
 
-Reverta na **ordem inversa**: primeiro o Apache, depois a aplicação. Se abriu um novo terminal, redefina as variáveis anotadas no passo 0.1 (`ANTIGO`, `NOVO`, `POLITICA_ANTIGO` e `TENTATIVAS_ANTIGO`).
+Reverta na **ordem inversa**: primeiro o Apache, depois a aplicação. O rollback da aplicação só remove o contêiner `$NOVO` se a imagem dele for `boletim-senar:1.1` (guard por imagem; se o passo 3 falhou antes do `docker rename`, `$NOVO` pode ser o próprio 1.0). Se abriu um novo terminal, redefina as variáveis anotadas no passo 0.1 (`ANTIGO`, `NOVO`, `POLITICA_ANTIGO` e `TENTATIVAS_ANTIGO`).
 
 ### Apache (se já foi alterado)
 
@@ -196,12 +196,20 @@ Reverta na **ordem inversa**: primeiro o Apache, depois a aplicação. Se abriu 
 
 ```bash
 docker rm -f boletim-teste 2>/dev/null                # contêiner de teste do passo 2, se ainda existir (tem credenciais do banco no ambiente)
-docker update --restart=no "${NOVO:?defina no passo 0.1}"     # o NOVO: evita que volte sozinho após reinício
-docker stop "$NOVO" && docker rm "$NOVO"              # o NOVO (1.1)
-docker rename "${ANTIGO:?defina no passo 0.1}-1.0-antigo" "$ANTIGO"
-docker update --restart "${POLITICA_ANTIGO:?defina no passo 0.1}" "$ANTIGO"    # restaura a política original (anotada no passo 0.1; se for on-failure, use on-failure:${TENTATIVAS_ANTIGO:?defina no passo 0.1})
-docker start "$ANTIGO"
+IMG_NOVO="$(docker inspect -f '{{.Config.Image}}' "${NOVO:?defina no passo 0.1}" 2>/dev/null)"
+if [ "$IMG_NOVO" = "boletim-senar:1.1" ]; then
+  docker update --restart=no "$NOVO"                  # o NOVO: evita que volte sozinho após reinício
+  docker stop "$NOVO"
+  docker rm "$NOVO"                                   # só o contêiner cuja imagem é a 1.1
+  docker rename "${ANTIGO:?defina no passo 0.1}-1.0-antigo" "$ANTIGO"
+  docker update --restart "${POLITICA_ANTIGO:?defina no passo 0.1}" "$ANTIGO"    # restaura a política original (anotada no passo 0.1; se for on-failure, use on-failure:${TENTATIVAS_ANTIGO:?defina no passo 0.1})
+  docker start "$ANTIGO"
+else
+  echo "ATENCAO: o contêiner chamado '$NOVO' NAO e o 1.1 (imagem: '${IMG_NOVO:-inexistente}'). Ele pode ser o antigo 1.0 (o passo 3 falhou antes do 'docker rename'), entao NADA foi removido. Veja abaixo 'Se o guard recusou'."
+fi
 ```
+
+**Se o guard recusou** (o contêiner `$NOVO` não é o 1.1): confira com `docker ps -a --format '{{.Names}}	{{.Image}}	{{.Status}}'`. Se o `1.0` ainda se chama `$ANTIGO` (o passo 3 falhou antes do rename), basta garantir a política e iniciá-lo: `docker update --restart "$POLITICA_ANTIGO" "$ANTIGO"` e `docker start "$ANTIGO"`. Se ele já foi renomeado para `${ANTIGO}-1.0-antigo` e não existe contêiner `$NOVO`, execute só `docker rename "${ANTIGO}-1.0-antigo" "$ANTIGO"`, o `docker update --restart` e o `docker start`. Nunca remova um contêiner cuja imagem não seja `boletim-senar:1.1`.
 
 Se o contêiner antigo não existir mais, suba um novo da imagem `1.0` com a configuração anterior (valores em `/root/boletim-1.0-inspect.json`):
 
