@@ -19,7 +19,9 @@ const CORES_PADRAO = {
   '--texto-suave': '#526c66',
 };
 
-// Fonte Inter (OFL) embutida em base64 para funcionar offline no Chromium headless.
+// Fonte Inter (OFL) embutida em base64 para funcionar offline no Chromium headless. Só cobre o subconjunto
+// latino: emoji e símbolos (✅ ⚠️ 📌 → ✓) dependem das fontes do sistema (veja deploy/INSTALL.md, passo 2).
+// Origem dos arquivos e licença: src/render/assets/README.md.
 const PESOS = [400, 500, 600, 700, 800];
 const FONT_FACES = PESOS.map((w) => {
   const b64 = fs.readFileSync(path.join(ASSETS, `inter-latin-${w}-normal.woff2`)).toString('base64');
@@ -57,7 +59,7 @@ function buildCss({ mode, escala, cores }) {
   return `${FONT_FACES}${rootVars(escala, cores)}
 *{box-sizing:border-box;margin:0;padding:0;}
 ${a4 ? '@page{size:A4;margin:0}\n' : ''}html,body{background:var(--fundo);}
-body{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--texto);-webkit-font-smoothing:antialiased;}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif,"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji";color:var(--texto);-webkit-font-smoothing:antialiased;}
 .pagina{${pagina}background:var(--fundo);}
 #conteudo{${conteudo}}
 #conteudo>*{flex-shrink:0;}

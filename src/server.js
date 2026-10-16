@@ -14,13 +14,13 @@ const { getPool, closePool } = require('./db/pool');
 const { migrate } = require('./db/migrate');
 const { createExporter } = require('./export/exporter');
 const { renderEdition } = require('./render/renderEdition');
-const { buildServer } = require('./bootstrap');
+const { buildServer, criarEncerramento } = require('./bootstrap');
 
 async function main() {
   const pool = getPool();
   await migrate(pool);
   const exporter = createExporter({ renderHtml: renderEdition });
-  const { app, close } = buildServer({ config, pool, exporter });
+  const { app } = buildServer({ config, pool, exporter });
   const server = app.listen(config.port, config.host, () => {
     console.log(`Comunicado Semanal ouvindo em http://${config.host}:${config.port} (Node ${process.version})`);
   });
@@ -29,27 +29,7 @@ async function main() {
     process.exit(1);
   });
 
-  let encerrando = false;
-  async function encerrar(sinal) {
-    if (encerrando) return;
-    encerrando = true;
-    console.log(`${sinal} recebido: encerrando...`);
-    setTimeout(() => {
-      console.error('Encerramento excedeu 10 s: forçando saída.');
-      process.exit(1);
-    }, 10000).unref();
-    server.close(); // para de aceitar conexões
-    server.closeIdleConnections?.();
-    try {
-      await close();
-      await exporter.close();
-      await closePool();
-    } catch (e) {
-      console.error('Erro ao encerrar:', e.message);
-      process.exit(1);
-    }
-    process.exit(0);
-  }
+  const encerrar = criarEncerramento({ server, app, exporter, closePool, timeoutMs: 10000 });
   process.on('SIGTERM', () => encerrar('SIGTERM'));
   process.on('SIGINT', () => encerrar('SIGINT'));
 }

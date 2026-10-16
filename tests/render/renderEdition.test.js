@@ -124,3 +124,11 @@ test('palavra gigante: regra overflow-wrap cobre etiqueta e chamada', () => {
   assert.ok(/\.etiqueta\{[^}]*max-width:100%/.test(css));
   assert.ok(bodyOf(html).includes('<article class="bloco bloco-card ultimo-impar"><span class="etiqueta">' + g));
 });
+
+test('pilha de fontes: Inter primeiro e fontes de emoji coloridas como reserva', () => {
+  const html = renderEdition({ edicao, blocos: [] });
+  const m = /body\{font-family:([^;]+);/.exec(html);
+  assert.ok(m, 'regra de font-family do body');
+  assert.ok(m[1].startsWith('Inter,'));
+  assert.ok(m[1].endsWith('"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji"'), m[1]);
+});

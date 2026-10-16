@@ -1,6 +1,7 @@
 // Teste de fumaça do Chromium: renderiza uma edição de exemplo e valida PDF/PNGs.
 // Uso: node --env-file=/etc/boletim/boletim.env scripts/smoke-export.js [diretorio-de-saida]
 // (CHROMIUM_PATH e CHROMIUM_NO_SANDBOX vêm do ambiente; saída padrão: pasta temporária do sistema.)
+// Abra o PDF/PNG gerados: o fim do bloco de dica ("Teste de glifos") deve mostrar ícones, não quadrados.
 // Não usa banco. Código de saída 0 = tudo PASS, 1 = alguma falha.
 const fs = require('node:fs');
 const os = require('node:os');
@@ -18,7 +19,7 @@ const blocos = [
   { tipo: 'destaque', dados: { etiqueta: 'Destaque da semana', titulo: 'Abra seus chamados de TI pelo Help Desk Fluig', texto: 'Registre as solicitações de suporte no Help Desk Fluig. O sistema permite acompanhar o andamento dos chamados e ajuda a equipe a organizar as prioridades de atendimento.', chamada: 'Acesse o Fluig e abra um chamado sempre que precisar de suporte.' } },
   { tipo: 'card', dados: { etiqueta: 'CFPR', titulo: 'Comunicação no CFPR Campanha', texto: 'O Departamento de TI implantou o WhatsApp como novo canal para informações sobre treinamentos e inscrições da unidade.' } },
   { tipo: 'card', dados: { etiqueta: 'REDE', titulo: 'Manutenção física da rede', texto: 'A rede recebeu manutenção preventiva, com atualização do cabeamento de algumas áreas e substituição de conectores.' } },
-  { tipo: 'dica', dados: { titulo: 'Dica de segurança: desconfie de e-mails urgentes', texto: 'Antes de abrir links ou anexos, confira o remetente. Em caso de dúvida, encaminhe a mensagem para a equipe de TI.' } },
+  { tipo: 'dica', dados: { titulo: 'Dica de segurança: desconfie de e-mails urgentes', texto: 'Antes de abrir links ou anexos, confira o remetente. Em caso de dúvida, encaminhe a mensagem para a equipe de TI. Teste de glifos: ✅ ⚠️ 📌 → ✓' } },
 ].map((b, i) => ({ id: i + 1, ordem: i + 1, ...b }));
 const entrada = { edicao, blocos, settings: {}, logo: null };
 

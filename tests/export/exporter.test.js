@@ -204,14 +204,16 @@ test('relanca o navegador apos queda (close por fora e kill do processo)', async
 });
 
 test('trabalho que excede o timeout rejeita com erro claro e o proximo da fila funciona', async () => {
-  const lento = '<!doctype html><script>const t=Date.now();while(Date.now()-t<15000){}</script>';
-  const e = createExporter({ renderHtml: (o) => (o.edicao.numero === 77 ? lento : renderEdition(o)), timeoutMs: 1500 });
+  // O limite é por trabalho (cada um tem o seu timer), mas o relançamento do Chromium após o travamento cai
+  // no orçamento do trabalho seguinte: 5 s dá folga em máquina lenta; o laço de 30 s prova que não se espera por ele.
+  const lento = '<!doctype html><script>const t=Date.now();while(Date.now()-t<30000){}</script>';
+  const e = createExporter({ renderHtml: (o) => (o.edicao.numero === 77 ? lento : renderEdition(o)), timeoutMs: 5000 });
   try {
     const t0 = Date.now();
     const ruim = e.pdf({ ...normal, edicao: { ...edicao, numero: 77 } });
     const bom = e.pdf(normal);
     await assert.rejects(ruim, /Tempo limite/);
-    assert.ok(Date.now() - t0 < 8000, 'timeout nao esperou o loop terminar');
+    assert.ok(Date.now() - t0 < 20000, 'timeout nao esperou o loop terminar');
     assert.equal((await bom).subarray(0, 4).toString(), '%PDF');
     await semVazamento(e);
   } finally {
