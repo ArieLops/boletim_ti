@@ -9,6 +9,7 @@
     "test": "node --env-file=.env.test --test \"tests/**/*.test.js\""
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
     "bcryptjs": "^3.0.3",
     "ejs": "^7.0.1",
     "express": "^5.3.0",
