@@ -174,3 +174,22 @@ test('erro de login é genérico e, após 5 falhas, informa bloqueio', async () 
   const outro = await login('edu', 'senha-edu-123', '10.9.9.10');
   assert.equal(outro.res.status, 302);
 });
+
+test('tentativas erradas paralelas também são limitadas (429)', async () => {
+  const ip = '10.8.8.8';
+  const rs = await Promise.all(Array.from({ length: 10 }, () => login('edu', 'errada', ip)));
+  const status = rs.map((r) => r.res.status);
+  assert.ok(status.includes(429), `esperava ao menos um 429, veio ${status}`);
+  assert.ok(status.filter((s) => s === 401).length <= 5);
+});
+
+test('variantes de acento/caixa/espaço do login compartilham o mesmo bloqueio', async () => {
+  const ip = '10.7.7.7';
+  const variantes = ['admin', 'ADMIN', 'ádmin', 'ADMÍN', 'admin ', ' Admin'];
+  for (const v of variantes.slice(0, 5)) {
+    const r = await login(v, 'errada', ip);
+    assert.equal(r.res.status, 401);
+  }
+  const sexta = await login(variantes[5], 'errada', ip);
+  assert.equal(sexta.res.status, 429);
+});

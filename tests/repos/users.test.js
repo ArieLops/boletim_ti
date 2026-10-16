@@ -66,3 +66,20 @@ test('listUsers não expõe senha_hash', async () => {
   assert.ok(lista.length >= 3);
   assert.ok(lista.every((u) => !('senha_hash' in u)));
 });
+
+test('hash descartável usa o mesmo custo bcrypt dos hashes reais', async () => {
+  const { dummyHash } = require('../../src/auth/passwords');
+  const anterior = process.env.BCRYPT_COST;
+  try {
+    for (const c of ['4', '5']) {
+      process.env.BCRYPT_COST = c;
+      const real = await hashPassword('x');
+      const dummy = await dummyHash();
+      const custo = (h) => Number(/^\$2[aby]\$(\d{2})\$/.exec(h)[1]);
+      assert.equal(custo(dummy), custo(real));
+      assert.equal(custo(dummy), Number(c));
+    }
+  } finally {
+    process.env.BCRYPT_COST = anterior;
+  }
+});

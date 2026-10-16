@@ -1,10 +1,6 @@
-const bcrypt = require('bcryptjs');
-const { hashPassword, checkPassword } = require('../auth/passwords');
+const { hashPassword, checkPassword, dummyHash } = require('../auth/passwords');
 
 const PERFIS = ['editor', 'administrador'];
-// Hash descartável (de uma senha aleatória) para igualar o tempo de resposta
-// quando o login não existe, sem revelar a existência do usuário.
-const DUMMY_HASH = bcrypt.hashSync(require('node:crypto').randomBytes(16).toString('hex'), 4);
 
 function makeUsersRepo(pool) {
   async function createUser({ nome, login, senha, perfil }) {
@@ -20,7 +16,7 @@ function makeUsersRepo(pool) {
   async function verifyLogin(login, senha) {
     const [rows] = await pool.query('SELECT * FROM usuarios WHERE login = ?', [login]);
     const u = rows[0];
-    const ok = await checkPassword(senha, u ? u.senha_hash : DUMMY_HASH);
+    const ok = await checkPassword(senha, u ? u.senha_hash : await dummyHash());
     if (!u || !ok || !u.ativo) return null;
     return u;
   }

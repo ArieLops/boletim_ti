@@ -6,6 +6,12 @@ const MSG_INVALIDO = 'Usuário ou senha inválidos';
 const MSG_BLOQUEADO = 'Muitas tentativas. Conta temporariamente bloqueada; tente novamente em alguns minutos.';
 const MIN_SENHA = 8;
 
+// Forma canônica do login para a chave do throttle: a collation do banco ignora
+// acento/caixa/espaços finais, então as variantes precisam cair no mesmo balde.
+function loginCanonico(login) {
+  return login.trim().normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
 function authRoutes({ throttle = createThrottle() } = {}) {
   const r = express.Router();
 
@@ -17,11 +23,13 @@ function authRoutes({ throttle = createThrottle() } = {}) {
   r.post('/login', async (req, res) => {
     const login = String((req.body && req.body.login) || '').trim();
     const senha = String((req.body && req.body.senha) || '');
-    const chave = `${login.toLowerCase()}|${req.ip}`;
+    const chave = `${loginCanonico(login)}|${req.ip}`;
     if (throttle.bloqueado(chave)) return res.status(429).render('login', { erro: MSG_BLOQUEADO });
+    // A tentativa é contada ANTES do await (evita burlar o limite com requisições
+    // paralelas); em caso de sucesso a chave é limpa.
+    throttle.registrarFalha(chave);
     const u = login && senha ? await req.app.locals.users.verifyLogin(login, senha) : null;
     if (!u) {
-      throttle.registrarFalha(chave);
       return res.status(401).render('login', { erro: MSG_INVALIDO });
     }
     throttle.limpar(chave);

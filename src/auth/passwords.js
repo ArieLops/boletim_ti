@@ -14,4 +14,15 @@ function checkPassword(senha, hash) {
   return bcrypt.compare(senha, hash);
 }
 
-module.exports = { hashPassword, checkPassword };
+// Hash descartável com o MESMO custo dos hashes reais (comparação com login
+// inexistente leva o mesmo tempo). Em cache por custo.
+const dummies = new Map();
+function dummyHash() {
+  const c = cost();
+  if (!dummies.has(c)) {
+    dummies.set(c, hashPassword(require('node:crypto').randomBytes(16).toString('hex')));
+  }
+  return dummies.get(c);
+}
+
+module.exports = { hashPassword, checkPassword, dummyHash };
