@@ -46,7 +46,7 @@ function makeEditionsRepo(pool) {
   }
 
   // Blocos mantêm o id quando o chamador o devolve (UPDATE); novos são inseridos; ausentes são apagados.
-  async function saveEdition(id, { versao, campos = {}, blocos = [] }, userId) {
+  async function saveEdition(id, { versao, campos = {}, blocos = [], token }, userId) {
     const validados = blocos.map((b, i) => {
       const v = validateBlock(b.tipo, b.dados);
       if (!v.ok) throw new Error(`Bloco ${i} inválido: ${v.errors.join('; ')}`);
@@ -105,7 +105,7 @@ function makeEditionsRepo(pool) {
       for (const e of eventos) {
         await insertEvent(conn, id, userId, e.acao, { blocoId: e.blocoId, titulo: e.titulo });
       }
-      await insertEvent(conn, id, userId, 'edicao_salva', { versao: novaVersao });
+      await insertEvent(conn, id, userId, 'edicao_salva', token ? { versao: novaVersao, token } : { versao: novaVersao });
 
       await conn.commit();
       return novaVersao;
@@ -117,6 +117,20 @@ function makeEditionsRepo(pool) {
     }
   }
 
+  // Idempotência: se o ÚLTIMO salvamento da edição carrega este token e produziu a versão atual, a requisição
+  // é a repetição de um save já confirmado (resposta perdida). Devolve a versão atual; senão null.
+  async function findRepeatedSave(id, token) {
+    if (typeof token !== 'string' || !token) return null;
+    const [ed] = await pool.query('SELECT versao, status FROM edicoes WHERE id = ?', [id]);
+    if (!ed[0] || ed[0].status === 'publicada') return null;
+    const [ev] = await pool.query(
+      "SELECT detalhe FROM historico WHERE edicao_id = ? AND acao = 'edicao_salva' ORDER BY id DESC LIMIT 1",
+      [id]
+    );
+    const d = ev[0] ? parseJson(ev[0].detalhe) : null;
+    return d && d.token === token && d.versao === ed[0].versao ? ed[0].versao : null;
+  }
+
   async function setStatus(id, status, userId) {
     if (!STATUS.includes(status)) throw new Error('Status inválido');
     const [r] = await pool.query('UPDATE edicoes SET status = ?, atualizado_por = ? WHERE id = ?', [status, userId, id]);
@@ -124,7 +138,7 @@ function makeEditionsRepo(pool) {
     await insertEvent(pool, id, userId, 'status_alterado', { status });
   }
 
-  return { nextNumber, createEdition, getEdition, listEditions, saveEdition, setStatus };
+  return { nextNumber, createEdition, getEdition, listEditions, saveEdition, findRepeatedSave, setStatus };
 }
 
 let defaultRepo;
@@ -144,5 +158,6 @@ module.exports = {
   getEdition: lazy('getEdition'),
   listEditions: lazy('listEditions'),
   saveEdition: lazy('saveEdition'),
+  findRepeatedSave: lazy('findRepeatedSave'),
   setStatus: lazy('setStatus'),
 };

@@ -31,11 +31,13 @@
   let semAviso = false; // true ao recarregar de propósito (sem diálogo de "sair da página")
   let timerSalvar = null;
   let timerRetentar = null;
+  let incerto = null; // envio cujo resultado é desconhecido: {token, payload, geracao, lis}
   let timerPreview = null;
   let corridaPreview = null;
   let pendentePreview = false;
   let inicioPreview = 0;
   let ajusteAtual = null;
+  let faltaAtual = null;
   let ocupado = false;
 
   // ---------- anúncios e mensagens ----------
@@ -161,26 +163,34 @@
   }
 
   async function executarSalvar() {
-    const payload = montarPayload();
-    const problemas = L.validarLocal(payload);
-    if (problemas.length) {
-      setEstado('invalido', 'Não salvo: faltam dados');
-      erroDosBlocos(problemas);
-      return false;
+    // Envio incerto anterior (rede/5xx): repete o MESMO payload com o MESMO token, para o servidor reconhecer
+    // um save que já foi gravado; o que foi digitado depois segue no próximo ciclo (geracao diferente).
+    const plano = L.planejarEnvio(incerto, L.novoToken);
+    const payload = plano.reenvio ? plano.payload : montarPayload();
+    if (!plano.reenvio) {
+      const problemas = L.validarLocal(payload);
+      if (problemas.length) {
+        setEstado('invalido', 'Não salvo: faltam dados');
+        erroDosBlocos(problemas);
+        return false;
+      }
     }
     erroDosBlocos([]);
-    const geracaoEnviada = geracao;
-    const lisEnviados = itens();
+    const geracaoEnviada = plano.reenvio ? incerto.geracao : geracao;
+    const lisEnviados = plano.reenvio ? incerto.lis : itens();
     setEstado('salvando', 'Salvando…');
     let r;
     try {
-      r = await Api.json('PUT', '/edicoes/' + ID, payload);
+      r = await Api.json('PUT', '/edicoes/' + ID, Object.assign({}, payload, { saveToken: plano.token }));
     } catch (e) {
+      incerto = { token: plano.token, payload, geracao: geracaoEnviada, lis: lisEnviados };
       setEstado('erro', 'Erro ao salvar');
       aviso('Sem conexão com o servidor. Nova tentativa em instantes.', 'erro');
       timerRetentar = setTimeout(salvarAgora, RETENTAR_MS);
       return false;
     }
+    if (L.envioIncerto(r.status)) incerto = { token: plano.token, payload, geracao: geracaoEnviada, lis: lisEnviados };
+    else incerto = null;
     if (r.ok && r.corpo && Number.isInteger(r.corpo.versao)) {
       versao = r.corpo.versao;
       raiz.dataset.versao = String(versao);
@@ -192,7 +202,7 @@
         sujo = false;
         setEstado('salvo', 'Salvo');
       } else {
-        // houve edição durante o envio: salva de novo em seguida
+        // houve edição durante o envio (ou após um envio incerto): salva de novo em seguida
         setEstado('pendente', 'Alterações não salvas');
         timerSalvar = setTimeout(salvarAgora, SALVAR_MS);
       }
@@ -235,9 +245,10 @@
   });
 
   // ---------- pré-visualização ----------
-  function setIndicador(ajuste) {
+  function setIndicador(ajuste, faltaMm) {
     ajusteAtual = ajuste;
-    const t = L.textoAjuste(ajuste);
+    faltaAtual = faltaMm;
+    const t = L.textoAjuste(ajuste, faltaMm);
     indicador.textContent = t.texto;
     indicador.className = 'indicador indicador-' + t.classe;
   }
@@ -256,8 +267,9 @@
       if (r.status === 401) return window.location.assign('/login');
       if (!r.ok) throw new Error('preview ' + r.status);
       const ajuste = r.headers.get('X-Ajuste');
+      const faltaMm = r.headers.get('X-Falta-Mm');
       iframe.srcdoc = await r.text();
-      setIndicador(ajuste);
+      setIndicador(ajuste, faltaMm);
     } catch (e) {
       setIndicador('indisponivel');
     }
@@ -332,7 +344,7 @@
       if (!(await sincronizar())) return;
       let confirmar = false;
       if (!travado && L.precisaConfirmarCorte(tipo, ajusteAtual)) {
-        if (!window.confirm('O conteúdo será cortado. Baixar mesmo assim?')) return ocupar(false), aviso('');
+        if (!window.confirm(L.textoCorte(faltaAtual) + '. Baixar mesmo assim?')) return ocupar(false), aviso('');
         confirmar = true;
       }
       for (let tentativa = 0; tentativa < 2; tentativa++) {
@@ -352,7 +364,7 @@
         let corpo = null;
         try { corpo = await r.json(); } catch (e) { corpo = null; }
         const c = L.classificarErro(r.status, corpo);
-        if (c.tipo === 'cortado' && !confirmar && window.confirm('O conteúdo será cortado. Baixar mesmo assim?')) { confirmar = true; continue; }
+        if (c.tipo === 'cortado' && !confirmar && window.confirm(L.textoCorte(c.faltaMm) + '. Baixar mesmo assim?')) { confirmar = true; continue; }
         return aviso(c.tipo === 'cortado' ? 'Download cancelado: o conteúdo seria cortado.' : c.mensagem, 'erro');
       }
     } catch (e) {
@@ -388,7 +400,7 @@
       if (!(await sincronizar())) return;
       const limite = ajusteAtual === 'limite';
       const texto = limite
-        ? 'O conteúdo será cortado na página A4. Publicar mesmo assim? A edição ficará travada.'
+        ? L.textoCorte(faltaAtual) + ' na página A4. Publicar mesmo assim? A edição ficará travada.'
         : 'Publicar a edição ' + raiz.dataset.numero + '? Os arquivos serão gerados e a edição ficará travada.';
       if (!window.confirm(texto)) return ocupar(false), aviso('');
       aviso('Publicando: gerando PDF e imagens…', 'info');
@@ -401,7 +413,7 @@
           return;
         }
         const c = L.classificarErro(r.status, r.corpo);
-        if (c.tipo === 'cortado' && !confirmar && window.confirm('O conteúdo será cortado. Publicar mesmo assim?')) { confirmar = true; continue; }
+        if (c.tipo === 'cortado' && !confirmar && window.confirm(L.textoCorte(c.faltaMm) + '. Publicar mesmo assim?')) { confirmar = true; continue; }
         if (c.tipo === 'conflito' || c.tipo === 'publicada') return aviso(c.mensagem + ' Recarregue a página.', 'erro');
         return aviso(c.tipo === 'cortado' ? 'Publicação cancelada: o conteúdo seria cortado.' : c.mensagem, 'erro');
       }

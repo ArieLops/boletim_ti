@@ -56,13 +56,15 @@ test('nav mostra Usuários/Configurações só para administrador', async () => 
   assert.match(a, /href="\/configuracoes"/);
 });
 
-test('GET /edicoes/nova vem antes de /:id e mostra o número sugerido', async () => {
+test('GET /edicoes/nova vem antes de /:id e traz o campo Número preenchido com o sugerido', async () => {
   const r = await edu.get('/edicoes/nova');
   assert.equal(r.status, 200);
   assert.match(r.text, /<form[^>]*id="form-nova"/);
   assert.match(r.text, /name="mesAno"/);
   assert.match(r.text, /name="titulo"/);
-  assert.match(r.text, /Número sugerido[^<]*<[^>]*>\s*2/);
+  assert.match(r.text, /<input[^>]*name="numero"[^>]*type="number"[^>]*value="2"|<input[^>]*type="number"[^>]*name="numero"[^>]*value="2"/);
+  assert.match(r.text, /name="numero"[^>]*min="1"/);
+  assert.match(r.text, /id="erro-numero"/);
 });
 
 test('editor: botões, token CSRF para o JS, blocos e campos habilitados', async () => {

@@ -7,6 +7,7 @@ const { erro, carregarEdicao, exportador, contextoExport, ExportUnavailableError
 
 const MES_ANO = /^\d{4}-(0[1-9]|1[0-2])$/;
 const MAX_TITULO = 255;
+const MAX_TOKEN = 64;
 const ehObjeto = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const textoNaoVazio = (v) => typeof v === 'string' && v.trim().length > 0;
 
@@ -25,6 +26,7 @@ function validarSalvamento(b) {
   if (!ehObjeto(b)) return { erro: 'corpo inválido' };
   if (!Number.isInteger(b.versao)) return { erro: 'versao deve ser um inteiro' };
   if (!Array.isArray(b.blocos)) return { erro: 'blocos deve ser uma lista' };
+  if (b.saveToken !== undefined && !(typeof b.saveToken === 'string' && b.saveToken.length > 0 && b.saveToken.length <= MAX_TOKEN)) return { erro: `saveToken deve ser um texto de até ${MAX_TOKEN} caracteres` };
   const campos = b.campos === undefined ? {} : b.campos;
   if (!ehObjeto(campos)) return { erro: 'campos deve ser um objeto' };
   const c = {};
@@ -56,7 +58,7 @@ function validarSalvamento(b) {
     if (!v.ok) return { erro: `bloco ${i + 1} inválido: ${v.errors.join('; ')}` };
     blocos.push({ id, tipo: bl.tipo, dados: bl.dados });
   }
-  return { ok: { versao: b.versao, campos: c, blocos } };
+  return { ok: { versao: b.versao, campos: c, blocos, token: b.saveToken } };
 }
 
 // Escala do fit -> valor do cabeçalho X-Ajuste ("100", "88", ..., "limite").
@@ -85,17 +87,25 @@ function editionsRoutes() {
     if (!v.ok) return erro(res, 400, v.erro);
     const { edicao } = req.dados;
     if (edicao.status === 'publicada') return erro(res, 409, 'edição publicada; reabra para editar');
-    try {
-      const versao = await req.app.locals.editions.saveEdition(edicao.id, v.ok, req.user.id);
-      // Devolve também os ids dos blocos (na ordem enviada) para o editor manter a identidade dos novos.
-      const atual = await req.app.locals.editions.getEdition(edicao.id);
-      const resposta = { versao };
+    const { editions } = req.app.locals;
+    // Corpo de sucesso: versão + ids dos blocos (na ordem enviada) para o editor manter a identidade dos novos.
+    const sucesso = async (versao, extra = {}) => {
+      const atual = await editions.getEdition(edicao.id);
+      const resposta = { versao, ...extra };
       if (atual && atual.edicao.versao === versao && atual.blocos.length === v.ok.blocos.length) {
         resposta.blocos = atual.blocos.map((b) => ({ id: b.id }));
       }
-      res.json(resposta);
+      return resposta;
+    };
+    try {
+      res.json(await sucesso(await editions.saveEdition(edicao.id, v.ok, req.user.id)));
     } catch (e) {
-      if (e instanceof ConflictError) return erro(res, 409, `esta edição foi alterada por ${e.por}, recarregue`);
+      if (e instanceof ConflictError) {
+        // Resposta perdida: se o último salvamento é este mesmo (token) e está na versão atual, é uma repetição.
+        const repetida = await editions.findRepeatedSave(edicao.id, v.ok.token);
+        if (repetida != null) return res.json(await sucesso(repetida, { repetido: true }));
+        return erro(res, 409, `esta edição foi alterada por ${e.por}, recarregue`);
+      }
       // Publicada entre a checagem acima e o salvamento (corrida).
       if (/publicada não pode ser alterada/.test(e.message)) return erro(res, 409, 'edição publicada; reabra para editar');
       throw e;
@@ -107,13 +117,16 @@ function editionsRoutes() {
     const { input, opts } = await contextoExport(req);
     let scale = 1;
     let ajuste = 'indisponivel';
+    let faltaMm = null;
     try {
       const fit = await exportador(req).fit(input, opts);
       scale = fit.scale;
       ajuste = rotuloAjuste(fit);
+      if (fit.estouro) faltaMm = Number(fit.faltaMm) || 0;
     } catch (e) {
       if (!(e instanceof ExportUnavailableError)) throw e;
     }
+    if (faltaMm !== null) res.set('X-Falta-Mm', faltaMm.toFixed(1));
     res
       .set('X-Ajuste', ajuste)
       .set('Cache-Control', 'no-store')

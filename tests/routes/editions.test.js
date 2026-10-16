@@ -36,6 +36,7 @@ test('POST /edicoes cria com número padrão sequencial e aceita número explíc
   assert.equal(ea.subtitulo, 'Sub');
   const c = await edu.post('/edicoes', { numero: 500, mesAno: '2026-12', titulo: 'Explícita' });
   assert.equal(c.status, 201);
+  assert.equal((await ctx.pool.query('SELECT numero FROM edicoes WHERE id = ?', [c.body.id]))[0][0].numero, 500);
 });
 
 test('POST /edicoes: número duplicado dá 409; entradas inválidas dão 400', async () => {
@@ -177,4 +178,70 @@ test('preview usa o piso das configurações a cada requisição', async () => {
   await edu.get(`/edicoes/${id}/preview`);
   assert.deepEqual(ex.pisos, [0.6]);
   await ctx.pool.query("DELETE FROM configuracoes WHERE chave='pisoReducao'");
+});
+
+// ---------- saveToken: repetição de um PUT cuja resposta se perdeu ----------
+const salvas = async (id) => (await ctx.pool.query("SELECT detalhe FROM historico WHERE edicao_id = ? AND acao = 'edicao_salva'", [id]))[0].length;
+
+test('saveToken: repetir o PUT (mesmo token, versão antiga) devolve 200 repetido sem gravar de novo', async () => {
+  const id = await novaEdicao();
+  const corpo = { versao: 1, saveToken: 'tok-a', blocos: [blocoCard(1), blocoCard(2)] };
+  const a = await edu.put(`/edicoes/${id}`, corpo);
+  assert.equal(a.status, 200);
+  assert.equal(a.body.repetido, undefined);
+  const b = await edu.put(`/edicoes/${id}`, corpo);
+  assert.equal(b.status, 200, JSON.stringify(b.body));
+  assert.equal(b.body.repetido, true);
+  assert.equal(b.body.versao, a.body.versao);
+  assert.deepEqual(b.body.blocos, a.body.blocos);
+  assert.equal(await salvas(id), 1);
+  assert.equal((await ctx.pool.query('SELECT versao FROM edicoes WHERE id = ?', [id]))[0][0].versao, 2);
+});
+
+test('saveToken: outro usuário salvou depois -> repetição é conflito real (409)', async () => {
+  const id = await novaEdicao();
+  assert.equal((await edu.put(`/edicoes/${id}`, { versao: 1, saveToken: 'tok-b', blocos: [blocoCard(1)] })).status, 200);
+  assert.equal((await ana.put(`/edicoes/${id}`, { versao: 2, saveToken: 'tok-ana', blocos: [blocoCard(2)] })).status, 200);
+  const r = await edu.put(`/edicoes/${id}`, { versao: 1, saveToken: 'tok-b', blocos: [blocoCard(1)] });
+  assert.equal(r.status, 409);
+  assert.match(r.body.erro, /foi alterada por Ana/);
+  assert.equal(r.body.repetido, undefined);
+});
+
+test('saveToken: mesmo usuário salvou de outra aba (outro token) -> 409, sem sobrescrever', async () => {
+  const id = await novaEdicao();
+  assert.equal((await edu.put(`/edicoes/${id}`, { versao: 1, saveToken: 'tok-c1', blocos: [blocoCard(1)] })).status, 200);
+  assert.equal((await edu.put(`/edicoes/${id}`, { versao: 2, saveToken: 'tok-c2', blocos: [blocoCard(9)] })).status, 200);
+  const r = await edu.put(`/edicoes/${id}`, { versao: 1, saveToken: 'tok-c1', blocos: [blocoCard(1)] });
+  assert.equal(r.status, 409);
+  const [[b]] = await ctx.pool.query('SELECT dados FROM blocos WHERE edicao_id = ?', [id]);
+  assert.match(JSON.stringify(b.dados), /Título 9/);
+});
+
+test('saveToken: conflito sem token continua 409; token inválido -> 400', async () => {
+  const id = await novaEdicao();
+  assert.equal((await edu.put(`/edicoes/${id}`, { versao: 1, saveToken: 'tok-d', blocos: [blocoCard(1)] })).status, 200);
+  assert.equal((await edu.put(`/edicoes/${id}`, { versao: 1, blocos: [blocoCard(1)] })).status, 409);
+  assert.equal((await edu.put(`/edicoes/${id}`, { versao: 2, saveToken: 5, blocos: [blocoCard(1)] })).status, 400);
+  assert.equal((await edu.put(`/edicoes/${id}`, { versao: 2, saveToken: 'x'.repeat(65), blocos: [blocoCard(1)] })).status, 400);
+});
+
+test('saveToken: edição publicada não tem atalho (409 publicada)', async () => {
+  const id = await novaEdicao();
+  assert.equal((await edu.put(`/edicoes/${id}`, { versao: 1, saveToken: 'tok-e', blocos: [blocoCard(1)] })).status, 200);
+  assert.equal((await edu.post(`/edicoes/${id}/publicar`)).status, 200);
+  const r = await edu.put(`/edicoes/${id}`, { versao: 1, saveToken: 'tok-e', blocos: [blocoCard(1)] });
+  assert.equal(r.status, 409);
+  assert.match(r.body.erro, /publicada/);
+});
+
+test('preview: X-Falta-Mm só quando X-Ajuste é limite, com 1 casa decimal', async () => {
+  const id = await novaEdicao();
+  ex.fitResult = { scale: 0.75, estouro: true, faltaMm: 12.34 };
+  const a = await edu.get(`/edicoes/${id}/preview`);
+  assert.equal(a.headers['x-ajuste'], 'limite');
+  assert.equal(a.headers['x-falta-mm'], '12.3');
+  ex.fitResult = { scale: 0.88, estouro: false, faltaMm: 0 };
+  assert.equal((await edu.get(`/edicoes/${id}/preview`)).headers['x-falta-mm'], undefined);
+  ex.fitResult = { scale: 1, estouro: false, faltaMm: 0 };
 });

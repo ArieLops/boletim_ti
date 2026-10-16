@@ -146,3 +146,38 @@ test('listEditions traz o nome do último editor', async () => {
   assert.equal(e.atualizado_por_nome, 'Bia');
   assert.ok(lista.length >= 3);
 });
+
+// ---------- saveToken (idempotência de salvamento) ----------
+const salvasDe = async (id) => (await hist.listHistory(id)).filter((e) => e.acao === 'edicao_salva');
+
+test('saveEdition com token grava {versao, token} no evento edicao_salva; sem token, só versao', async () => {
+  const id = await nova(40);
+  await ed.saveEdition(id, { versao: 1, campos: {}, blocos: [bloco('A')], token: 'tok-1' }, ana);
+  await ed.saveEdition(id, { versao: 2, campos: {}, blocos: [bloco('A')] }, ana);
+  const [sem, com] = await salvasDe(id);
+  assert.deepEqual(com.detalhe, { versao: 2, token: 'tok-1' });
+  assert.deepEqual(sem.detalhe, { versao: 3 });
+});
+
+test('findRepeatedSave: token do último save na versão atual devolve a versão; outros casos null', async () => {
+  const id = await nova(41);
+  await ed.saveEdition(id, { versao: 1, campos: {}, blocos: [bloco('A')], token: 'T' }, ana);
+  assert.equal(await ed.findRepeatedSave(id, 'T'), 2);
+  assert.equal(await ed.findRepeatedSave(id, 'outro'), null);
+  assert.equal(await ed.findRepeatedSave(id, undefined), null);
+  assert.equal(await ed.findRepeatedSave(id, ''), null);
+  // outro usuário salva: o token T deixa de ser o último
+  await ed.saveEdition(id, { versao: 2, campos: {}, blocos: [bloco('B')], token: 'U' }, bia);
+  assert.equal(await ed.findRepeatedSave(id, 'T'), null);
+  assert.equal(await ed.findRepeatedSave(id, 'U'), 3);
+  // mesmo usuário em "segunda aba" (token diferente)
+  await ed.saveEdition(id, { versao: 3, campos: {}, blocos: [bloco('C')], token: 'V' }, bia);
+  assert.equal(await ed.findRepeatedSave(id, 'U'), null);
+});
+
+test('findRepeatedSave: edição publicada nunca é atalho', async () => {
+  const id = await nova(42);
+  await ed.saveEdition(id, { versao: 1, campos: {}, blocos: [bloco('A')], token: 'T' }, ana);
+  await ed.setStatus(id, 'publicada', ana);
+  assert.equal(await ed.findRepeatedSave(id, 'T'), null);
+});

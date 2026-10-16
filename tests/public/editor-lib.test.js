@@ -78,3 +78,49 @@ test('nomeArquivo: extrai do Content-Disposition ou usa o padrão', () => {
   assert.equal(lib.nomeArquivo('attachment; filename="comunicado-001.pdf"', 'x.pdf'), 'comunicado-001.pdf');
   assert.equal(lib.nomeArquivo(null, 'x.pdf'), 'x.pdf');
 });
+
+test('textoAjuste no limite mostra quanto falta cortar; cabeçalho ausente/lixo mantém o texto simples', () => {
+  assert.deepEqual(lib.textoAjuste('limite', '12.3'), { texto: 'passou do limite (faltam 12,3 mm)', classe: 'limite', limite: true });
+  assert.equal(lib.textoAjuste('limite', 12.34).texto, 'passou do limite (faltam 12,3 mm)');
+  for (const ruim of [undefined, null, '', 'abc', '-3', '0', '0.0', NaN, Infinity]) {
+    assert.equal(lib.textoAjuste('limite', ruim).texto, 'passou do limite', String(ruim));
+  }
+  // fora do limite o valor é ignorado
+  assert.equal(lib.textoAjuste('88', '5.0').texto, 'reduzido a 88%');
+});
+
+test('textoCorte: aviso de corte com os mm que faltam quando conhecidos', () => {
+  assert.equal(lib.textoCorte('7.04'), 'O conteúdo será cortado (faltam 7,0 mm)');
+  assert.equal(lib.textoCorte(2), 'O conteúdo será cortado (faltam 2,0 mm)');
+  assert.equal(lib.textoCorte(null), 'O conteúdo será cortado');
+  assert.equal(lib.textoCorte('lixo'), 'O conteúdo será cortado');
+});
+
+test('classificarErro: 409 de corte devolve faltaMm', () => {
+  const c = lib.classificarErro(409, { erro: 'conteúdo será cortado', faltaMm: 4.5 });
+  assert.equal(c.tipo, 'cortado');
+  assert.equal(c.faltaMm, 4.5);
+  assert.equal(lib.classificarErro(409, { erro: 'conteúdo será cortado' }).faltaMm, undefined);
+});
+
+test('novoToken: usa randomUUID quando existe; senão hex aleatório; sempre ≤ 64 e único', () => {
+  assert.equal(lib.novoToken({ randomUUID: () => 'uuid-fixo' }), 'uuid-fixo');
+  const hex = lib.novoToken({ getRandomValues: (a) => { a.fill(171); return a; } });
+  assert.match(hex, /^[0-9a-f]{32}$/);
+  assert.equal(hex, 'ab'.repeat(16));
+  const sem = lib.novoToken(null);
+  assert.match(sem, /^[0-9a-f]{32}$/);
+  assert.notEqual(lib.novoToken(null), lib.novoToken(null));
+  assert.ok(lib.novoToken().length <= 64);
+});
+
+test('envioIncerto: só falha de rede e 5xx deixam o resultado do PUT incerto', () => {
+  for (const s of [undefined, null, 0, 500, 502, 503, 504]) assert.equal(lib.envioIncerto(s), true, String(s));
+  for (const s of [200, 400, 401, 403, 404, 409, 413]) assert.equal(lib.envioIncerto(s), false, String(s));
+});
+
+test('planejarEnvio: reutiliza payload e token do envio incerto; sem incerto gera token novo', () => {
+  const incerto = { token: 'T1', payload: { versao: 4 } };
+  assert.deepEqual(lib.planejarEnvio(incerto, () => 'novo'), { token: 'T1', payload: { versao: 4 }, reenvio: true });
+  assert.deepEqual(lib.planejarEnvio(null, () => 'novo'), { token: 'novo', payload: null, reenvio: false });
+});

@@ -24,9 +24,24 @@
     return copia;
   }
 
-  // Valor do cabeçalho X-Ajuste -> texto do indicador.
-  function textoAjuste(valor) {
-    if (valor === 'limite') return { texto: 'passou do limite', classe: 'limite', limite: true };
+  // Quanto falta cortar (cabeçalho X-Falta-Mm ou campo faltaMm): "12,3 mm", ou '' se ausente/inválido/zero.
+  function faltaTexto(valor) {
+    const n = typeof valor === 'number' ? valor : /^\d+(\.\d+)?$/.test(String(valor == null ? '' : valor).trim()) ? Number(valor) : NaN;
+    return Number.isFinite(n) && n > 0 && n.toFixed(1) !== '0.0' ? n.toFixed(1).replace('.', ',') + ' mm' : '';
+  }
+
+  // Aviso de corte para os diálogos de download/publicação.
+  function textoCorte(faltaMm) {
+    const f = faltaTexto(faltaMm);
+    return 'O conteúdo será cortado' + (f ? ` (faltam ${f})` : '');
+  }
+
+  // Valor do cabeçalho X-Ajuste (+ X-Falta-Mm) -> texto do indicador.
+  function textoAjuste(valor, faltaMm) {
+    if (valor === 'limite') {
+      const f = faltaTexto(faltaMm);
+      return { texto: f ? `passou do limite (faltam ${f})` : 'passou do limite', classe: 'limite', limite: true };
+    }
     if (/^\d{1,3}$/.test(String(valor))) {
       const n = Number(valor);
       return n >= 100
@@ -71,12 +86,34 @@
     if (status === 401) return { tipo: 'sessao', mensagem: 'Sessão expirada. Entre novamente.' };
     if (status === 409) {
       if (/publicada/i.test(msg)) return { tipo: 'publicada', mensagem: msg };
-      if (/cortado/i.test(msg)) return { tipo: 'cortado', mensagem: msg };
+      if (/cortado/i.test(msg)) {
+        const c = { tipo: 'cortado', mensagem: msg };
+        if (corpo.faltaMm !== undefined) c.faltaMm = corpo.faltaMm;
+        return c;
+      }
       return { tipo: 'conflito', mensagem: msg || 'A edição foi alterada por outra pessoa. Recarregue.' };
     }
     if (status === 400) return { tipo: 'validacao', mensagem: msg || 'Dados inválidos.' };
     if (status === 503) return { tipo: 'indisponivel', mensagem: MSG_503 };
     return { tipo: 'outro', mensagem: msg || `Erro inesperado (${status}).` };
+  }
+
+  // Token de idempotência de UMA tentativa de salvamento (UUID; senão 32 hex aleatórios).
+  function novoToken(cripto = typeof crypto !== 'undefined' ? crypto : null) {
+    if (cripto && typeof cripto.randomUUID === 'function') return cripto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (cripto && typeof cripto.getRandomValues === 'function') cripto.getRandomValues(bytes);
+    else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Falha de rede (sem status) ou 5xx: o servidor pode ter gravado mesmo sem a resposta chegar.
+  const envioIncerto = (status) => status == null || status === 0 || status >= 500;
+
+  // Se há um envio incerto pendente, ele é repetido com o MESMO payload e token; senão, tentativa nova.
+  function planejarEnvio(incerto, gerarToken) {
+    if (incerto) return { token: incerto.token, payload: incerto.payload, reenvio: true };
+    return { token: gerarToken(), payload: null, reenvio: false };
   }
 
   const precisaConfirmarCorte = (tipo, ajuste) => ajuste === 'limite' && (tipo === 'pdf' || tipo === 'png-email');
@@ -86,5 +123,5 @@
     return m ? m[1] : padrao;
   }
 
-  return { CAMPOS, LIMITE_CAMPO, MSG_503, mover, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
+  return { CAMPOS, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
 });

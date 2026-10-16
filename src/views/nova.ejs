@@ -2,7 +2,8 @@
 <div class="cabeca-pagina"><h1>Nova edição</h1></div>
 <section class="cartao cartao-medio">
   <form id="form-nova" class="formulario" novalidate>
-    <p>Número sugerido: <strong class="numero-sugerido"><%= sugerido %></strong></p>
+    <label>Número <span class="suave">(sugerido: <%= sugerido %>)</span> <input type="number" name="numero" min="1" max="2147483647" step="1" value="<%= sugerido %>" required aria-describedby="erro-numero"></label>
+    <p id="erro-numero" class="aviso aviso-erro" role="alert" hidden></p>
     <label>Mês/ano <input type="month" name="mesAno" value="<%= mesAno %>" pattern="\d{4}-\d{2}" placeholder="AAAA-MM" required></label>
     <label>Título <input name="titulo" maxlength="255" value="Informações da TI para esta semana" required></label>
     <label>Subtítulo <span class="suave">(opcional; vazio usa o das configurações)</span> <input name="subtitulo" maxlength="255"></label>
