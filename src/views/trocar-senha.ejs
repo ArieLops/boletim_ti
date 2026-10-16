@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Trocar senha</title></head>
+<body>
+<h1>Trocar senha</h1>
+<% if (erro) { %><p role="alert"><%= erro %></p><% } %>
+<form method="post" action="/trocar-senha">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label>Nova senha <input type="password" name="senha" autocomplete="new-password" minlength="8" required></label>
+  <label>Confirmar <input type="password" name="confirmacao" autocomplete="new-password" minlength="8" required></label>
+  <button>Salvar</button>
+</form>
+</body></html>

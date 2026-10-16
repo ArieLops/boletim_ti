@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Usuários</title></head>
+<body>
+<h1>Usuários</h1>
+<% if (erro) { %><p role="alert"><%= erro %></p><% } %>
+<table>
+  <tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Ativo</th><th>Ações</th></tr>
+  <% usuarios.forEach(function (u) { %>
+  <tr>
+    <td><%= u.nome %></td><td><%= u.login %></td><td><%= u.perfil %></td><td><%= u.ativo ? 'sim' : 'não' %></td>
+    <td>
+      <form method="post" action="/usuarios/<%= u.id %>/senha">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="password" name="senha" placeholder="Nova senha provisória" minlength="8" required>
+        <button>Redefinir senha</button>
+      </form>
+      <form method="post" action="/usuarios/<%= u.id %>/ativo">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="ativo" value="<%= u.ativo ? '0' : '1' %>">
+        <button><%= u.ativo ? 'Desativar' : 'Reativar' %></button>
+      </form>
+    </td>
+  </tr>
+  <% }) %>
+</table>
+<h2>Novo usuário</h2>
+<form method="post" action="/usuarios">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label>Nome <input name="nome" required></label>
+  <label>Login <input name="login" required></label>
+  <label>Senha provisória <input type="password" name="senha" minlength="8" required></label>
+  <label>Perfil <select name="perfil"><% perfis.forEach(function (p) { %><option value="<%= p %>"><%= p %></option><% }) %></select></label>
+  <button>Criar</button>
+</form>
+<form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button>Sair</button></form>
+</body></html>
