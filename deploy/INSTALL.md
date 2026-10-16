@@ -9,6 +9,7 @@ Arquitetura: o Node escuta **somente em 127.0.0.1:3000**; o nginx recebe o HTTPS
 - Ubuntu 22.04 ou 24.04 com acesso `sudo`.
 - MySQL 8 ou MariaDB 10.6+ (local ou remoto).
 - Nome DNS interno (ex.: `boletim.senar-rs.com.br`) e certificado HTTPS (CA interna ou Let's Encrypt).
+- Node.js 20.6 ou superior (necessário para `node --env-file`; o NodeSource 20.x atende).
 - Cerca de 500 MB livres (Chrome + dependências) e 1 GB de RAM livre para a exportação.
 
 ```bash
@@ -61,7 +62,6 @@ sudo rsync -a /tmp/boletim-src/ /opt/boletim/
 sudo chown -R boletim:boletim /opt/boletim
 cd /opt/boletim
 sudo -u boletim npm ci --omit=dev
-sudo chmod +x deploy/backup.sh
 ```
 
 ## 5. Banco de dados
@@ -102,6 +102,8 @@ openssl rand -hex 32                 # copie o resultado para SESSION_SECRET
 sudo nano /etc/boletim/boletim.env   # DB_PASSWORD, SESSION_SECRET, CHROMIUM_PATH
 ```
 
+**Regras de valores:** o systemd (`EnvironmentFile`) e o Node (`--env-file`) interpretam o arquivo de formas diferentes. Por isso `DB_PASSWORD` e `SESSION_SECRET` **não podem conter** `#`, aspas, barra invertida (`\`) nem espaços; sem aspas em nenhum valor. A saída de `openssl rand -hex 32` é segura; escolha a senha do banco com letras e números (e símbolos simples como `_ - . @`).
+
 Mantenha `HOST=127.0.0.1` e `COOKIE_SECURE=true` (exige acesso por HTTPS). As migrações rodam sozinhas na subida do serviço.
 
 ## 7. Primeiro administrador
@@ -127,6 +129,17 @@ curl -fsS http://127.0.0.1:3000/saude        # esperado: {"ok":true}
 
 ## 9. nginx + HTTPS
 
+Primeiro o certificado (o `nginx -t` falha se os arquivos citados não existirem). Use o da CA interna da empresa: copie `fullchain.pem` e `privkey.pem` para `/etc/ssl/boletim/` (chave com modo 600). Para só testar a instalação, gere um certificado autoassinado temporário:
+
+```bash
+sudo mkdir -p /etc/ssl/boletim
+sudo openssl req -x509 -nodes -newkey rsa:2048 -days 365 -subj "/CN=boletim.senar-rs.com.br" \
+  -keyout /etc/ssl/boletim/privkey.pem -out /etc/ssl/boletim/fullchain.pem
+sudo chmod 600 /etc/ssl/boletim/privkey.pem
+```
+
+(Com Let's Encrypt, se o servidor for alcançável pela internet: `sudo apt install certbot python3-certbot-nginx`, ative primeiro só o bloco da porta 80 e rode `sudo certbot --nginx -d boletim.senar-rs.com.br`, que ajusta os caminhos do certificado.) Depois ative o site:
+
 ```bash
 sudo cp /opt/boletim/deploy/boletim.nginx.conf /etc/nginx/sites-available/boletim
 sudo nano /etc/nginx/sites-available/boletim    # server_name e caminhos do certificado
@@ -134,7 +147,7 @@ sudo ln -s /etc/nginx/sites-available/boletim /etc/nginx/sites-enabled/boletim
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Certificado: use o da CA interna da empresa (copie `fullchain.pem` e `privkey.pem` para `/etc/ssl/boletim/`, chave com modo 600) ou, se o servidor for alcançável pela internet, Let's Encrypt (`sudo apt install certbot python3-certbot-nginx && sudo certbot --nginx -d boletim.senar-rs.com.br`). O nginx **precisa** repassar `X-Forwarded-For` (acrescentando) e `X-Forwarded-Proto`: o cookie seguro e o limitador de tentativas de login dependem deles; o arquivo de exemplo já faz isso.
+O nginx **precisa** repassar `X-Forwarded-For` (acrescentando) e `X-Forwarded-Proto`: o cookie seguro e o limitador de tentativas de login dependem deles; o arquivo de exemplo já faz isso.
 
 ### Se o Apache já ocupa as portas 80/443
 
@@ -191,15 +204,18 @@ sudo tee /etc/boletim/backup.cnf <<'EOF'
 user=boletim
 password=TROQUE-PELA-SENHA-DO-BANCO
 EOF
-sudo chown root:root /etc/boletim/backup.cnf && sudo chmod 600 /etc/boletim/backup.cnf
-sudo /opt/boletim/deploy/backup.sh        # teste manual; deve imprimir "OK ..."
+sudo chown root:root /etc/boletim/backup.cnf && sudo chmod 600 /etc/boletim/backup.cnf   # root:root 600
+# Cópia de propriedade do root: o cron roda como root e NÃO deve executar um arquivo que o usuário
+# do serviço (boletim) possa alterar. Refaça este comando sempre que o backup.sh mudar (veja o Passo 13).
+sudo install -o root -g root -m 700 /opt/boletim/deploy/backup.sh /usr/local/sbin/boletim-backup
+sudo /usr/local/sbin/boletim-backup        # teste manual; deve imprimir "OK ..."
 ls -l /var/backups/boletim/
 ```
 
 Cron diário às 02:30 (como root). O cron envia por e-mail qualquer saída, então o script só escreve quando há erro (ou a linha "OK"; se preferir silêncio, redirecione a saída padrão para `/dev/null`, como abaixo, e erros continuam chegando por stderr):
 
 ```bash
-echo '30 2 * * * root /opt/boletim/deploy/backup.sh >/dev/null' | sudo tee /etc/cron.d/boletim-backup
+echo '30 2 * * * root /usr/local/sbin/boletim-backup >/dev/null' | sudo tee /etc/cron.d/boletim-backup
 ```
 
 Os arquivos têm retenção de 28 dias. **Copie `/var/backups/boletim` para outra máquina**: backup no mesmo servidor não protege contra a perda do servidor.
@@ -223,18 +239,26 @@ sudo systemctl start boletim
 
 ## 13. Atualização
 
-Faça um backup antes (`sudo /opt/boletim/deploy/backup.sh`) e copie a nova versão por cima de `/opt/boletim` (sem apagar `/etc/boletim`):
+Faça um backup antes e copie a nova versão para o servidor (mesma cópia do Passo 4, mesmas exclusões; `.env*` e `node_modules` do servidor são preservados):
 
 ```bash
-cd /opt/boletim
+sudo /usr/local/sbin/boletim-backup
+# na máquina de desenvolvimento:
+rsync -a --exclude node_modules --exclude '.env*' --exclude .git ./ usuario@servidor:/tmp/boletim-src/
+# no servidor (guarde a versão anterior para reversão):
+sudo rsync -a --exclude node_modules /opt/boletim/ /opt/boletim.anterior/
+sudo rsync -a --exclude node_modules --exclude '.env*' /tmp/boletim-src/ /opt/boletim/
 sudo chown -R boletim:boletim /opt/boletim
+cd /opt/boletim
 sudo -u boletim npm ci --omit=dev
+sudo install -o root -g root -m 700 /opt/boletim/deploy/backup.sh /usr/local/sbin/boletim-backup   # refaz a cópia do backup
+# se deploy/boletim.service ou o site nginx mudaram, copie-os de novo (Passos 8 e 9); para o service: sudo systemctl daemon-reload
 sudo systemctl restart boletim
 journalctl -u boletim -n 20 --no-pager
 curl -fsS http://127.0.0.1:3000/saude
 ```
 
-As migrações rodam automaticamente na subida; os dados não são apagados.
+As migrações rodam automaticamente na subida; os dados não são apagados. **Reversão:** `sudo rsync -a --delete --exclude node_modules /opt/boletim.anterior/ /opt/boletim/`, depois `cd /opt/boletim && sudo -u boletim npm ci --omit=dev` e `sudo systemctl restart boletim`. Migrações já aplicadas não são desfeitas; para voltar o banco use a restauração do Passo 12.
 
 ## 14. Solução de problemas
 
@@ -249,6 +273,7 @@ As migrações rodam automaticamente na subida; os dados não são apagados.
 | Todos foram deslogados | `SESSION_SECRET` foi trocado ou as sessões expiraram; é esperado. |
 | `ER_NET_PACKET_TOO_LARGE` ao publicar ou enviar logo | `max_allowed_packet` baixo no servidor do banco (Passo 5). |
 | 413 ao enviar logo | `client_max_body_size` do nginx (ou `LimitRequestBody` do Apache) abaixo de 5m. |
+| Backup falha com `Access denied ... RELOAD`, `FLUSH_TABLES` ou `PROCESS` (algumas versões 8.0.x) | Conceda só o privilégio que a mensagem cita ao usuário de backup (`boletim`), nunca ao root: por exemplo `GRANT RELOAD ON *.* TO 'boletim'@'localhost';` (ou `FLUSH_TABLES`/`PROCESS`). O script já usa `--no-tablespaces`, que evita o PROCESS na maioria dos casos. |
 | 502 Bad Gateway | Serviço parado: `systemctl status boletim` e `curl http://127.0.0.1:3000/saude`. |
 
 ## 15. Checklist de segurança
