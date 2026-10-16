@@ -89,8 +89,8 @@ No servidor, como root (ou com `sudo`), a partir de `/opt/boletim_ti`:
 sudo mkdir -p /root/apache-backups
 sudo cp -p "$(readlink -f /etc/apache2/sites-enabled/000-default.conf)" /root/apache-backups/000-default.conf.$(date +%Y%m%d-%H%M%S)
 readlink -f /etc/apache2/sites-enabled/000-default.conf     # anote: é o arquivo que você vai editar e restaurar
-ls -l /root/apache-backups/                                 # o backup deve ser arquivo comum (-rw-r--r--), NUNCA "lrwxrwxrwx"
-file /root/apache-backups/000-default.conf.*                # deve dizer "ASCII text", não "symbolic link"
+sudo ls -l /root/apache-backups/                            # o backup deve ser arquivo comum (-rw-r--r--), NUNCA "lrwxrwxrwx"
+sudo sh -c 'file /root/apache-backups/000-default.conf.*'   # deve dizer "ASCII text", não "symbolic link" (o * precisa ser expandido como root)
 
 # 2) Copiar o snippet para o diretório dedicado (arquivo novo; nada a salvar).
 #    Se já existir um /etc/apache2/boletim/boletim_ti.conf de tentativa anterior, guarde-o antes:
@@ -156,11 +156,21 @@ Estes passos são feitos **juntos**, na mesma janela. Com `COOKIE_SECURE=true`, 
 4. No env-file trocar `COOKIE_SECURE=false` por `true` e **recriar** o contêiner (`docker restart` não relê o env-file; veja [../docker/README.md](../docker/README.md)).
 5. `sudo apachectl configtest` e `sudo systemctl reload apache2`.
 
+Antes do `reload`, verifique a ordem das seções `Location` no `:443`. Esse vhost atende também os outros sistemas; se ele tiver um `<Location />` ou `<LocationMatch ...>` com `Require all granted` **depois** do `Include`, as seções `Location` são mescladas na ordem em que aparecem e a última vence, anulando o `Require ip` do `/boletim_ti/`:
+
+```bash
+sudo grep -n "<Location\|<LocationMatch\|IncludeOptional /etc/apache2/boletim" $(sudo apache2ctl -S 2>/dev/null | grep -o '/etc/apache2/sites-enabled/[^: ]*' | sort -u)
+```
+
+Se algum `Location` amplo vier depois do `Include`, mova o `IncludeOptional` para depois desses blocos. Não foi possível verificar o layout do seu servidor; confirme sempre com o teste de fora da faixa abaixo.
+
 Validação:
 
 ```bash
 curl -i http://192.168.10.161/boletim_ti/login     # 301 para https://192.168.10.161/boletim_ti/login (não mais 200)
 curl -ik https://192.168.10.161/boletim_ti/login   # 200 com Set-Cookie: boletim.sid=...; Path=/boletim_ti; Secure; HttpOnly
+# DE FORA da faixa autorizada (outra rede):
+curl -ik https://192.168.10.161/boletim_ti/login   # 403 Forbidden
 ```
 
 No navegador: login em `https://192.168.10.161/boletim_ti/` funciona e não entra em laço. Se entrar em laço: confira `a2enmod headers`, o `Include` no `:443` e `docker exec boletim printenv COOKIE_SECURE`.

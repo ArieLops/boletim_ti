@@ -127,6 +127,55 @@ function backupResolvido(texto) {
   return texto.includes('cp -p "$(readlink -f /etc/apache2/sites-enabled/000-default.conf)"') && !/cp -a \/etc\/apache2\/sites-enabled\/000-default\.conf/.test(texto);
 }
 
+// Linhas lógicas (continuação "\" unida, comentários e vazias fora) dos blocos ```bash de um guia.
+function comandosBash(texto) {
+  const comandos = [];
+  for (const m of texto.matchAll(/```bash\n([\s\S]*?)```/g)) {
+    const juntado = m[1].replace(/\\\n\s*/g, ' ');
+    for (const l of juntado.split('\n').map((x) => x.trim())) {
+      if (l && !l.startsWith('#')) comandos.push(l);
+    }
+  }
+  return comandos;
+}
+
+// Divide um comando em segmentos nos operadores (&&, ||, ;, |) fora de aspas.
+function segmentos(cmd) {
+  const out = [];
+  let atual = '';
+  let aspa = null;
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i];
+    if (aspa) {
+      if (c === aspa) aspa = null;
+      atual += c;
+    } else if (c === "'" || c === '"') {
+      aspa = c;
+      atual += c;
+    } else if (c === '#' && (i === 0 || /\s/.test(cmd[i - 1]))) {
+      break; // comentário até o fim da linha
+    } else if (c === ';' || c === '|' || (c === '&' && cmd[i + 1] === '&')) {
+      out.push(atual);
+      atual = '';
+      if (cmd[i + 1] === c) i++;
+    } else {
+      atual += c;
+    }
+  }
+  out.push(atual);
+  return out.map((x) => x.trim()).filter(Boolean);
+}
+
+// /root é 0700: todo segmento que cita /root/ precisa começar com sudo, e glob em /root/ só funciona dentro de "sudo sh -c".
+function comandosRootSemSudo(comandos) {
+  return comandos.filter((c) =>
+    segmentos(c).some((seg) => {
+      if (!seg.includes('/root/')) return false;
+      if (!/^sudo\b/.test(seg)) return true;
+      return /\/root\/\S*\*/.test(seg) && !/^sudo sh -c /.test(seg);
+    }));
+}
+
 // ---------- testes ----------
 
 test('arquivos de implantação existem', () => {
@@ -267,4 +316,26 @@ test('.gitattributes força LF nos arquivos de implantação', () => {
   for (const p of ['Dockerfile', '.dockerignore', 'deploy/**']) {
     assert.ok(new RegExp('^' + p.replace(/[.*]/g, '\\$&') + '\\s+text eol=lf', 'm').test(g), '.gitattributes sem LF para ' + p);
   }
+});
+
+test('guias: todo comando que usa /root/ está sob sudo (e glob dentro de sudo sh -c)', () => {
+  for (const rel of ['deploy/apache/README.md', 'deploy/docker/README.md', 'deploy/ATUALIZACAO.md']) {
+    const cmds = comandosBash(ler(rel));
+    assert.ok(cmds.length > 3, rel + ': nenhum bloco bash encontrado');
+    assert.deepEqual(comandosRootSemSudo(cmds), [], rel);
+  }
+  assert.ok(comandosBash(ler('deploy/ATUALIZACAO.md')).some((c) => c.includes('/root/')), 'esperava comandos com /root/');
+});
+
+test('verificador de /root sem sudo pega erros (casos negativos)', () => {
+  const ruim = (t) => comandosRootSemSudo(comandosBash('```bash\n' + t + '\n```\n'));
+  assert.equal(ruim('ls -l /root/apache-backups/').length, 1);
+  assert.equal(ruim('file /root/apache-backups/x.*').length, 1);
+  assert.equal(ruim('sudo file /root/apache-backups/x.*').length, 1); // glob expandido fora do root
+  assert.equal(ruim('cat /root/a | sudo tee /etc/x').length, 1);
+  assert.equal(ruim('sudo ls -l /root/apache-backups/').length, 0);
+  assert.equal(ruim("sudo sh -c 'file /root/apache-backups/x.*'").length, 0);
+  assert.equal(ruim('sudo cp -p /etc/a \\n  /root/b').length, 0); // continuação
+  assert.equal(ruim('cp /etc/a \\n  /root/b').length, 1);
+  assert.equal(ruim('# ls /root/x (comentário)').length, 0);
 });

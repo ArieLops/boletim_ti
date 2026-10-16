@@ -2,7 +2,7 @@
 
 Guia para construir a imagem `boletim-senar:1.1` (com suporte a `BASE_PATH`) e subir o contêiner no servidor, reproduzindo as configurações do contêiner atual (`boletim-senar:1.0`). A publicação em `/boletim_ti/` pelo Apache está em [../apache/README.md](../apache/README.md); o passo a passo de atualização e rollback está em [../ATUALIZACAO.md](../ATUALIZACAO.md).
 
-> **O que NÃO foi validado:** a máquina de desenvolvimento não tem Docker, então o `Dockerfile` **não foi construído nem executado** aqui (estado: não validado nesta máquina). Foi conferido apenas por testes estáticos (`tests/deploy-files.test.js`) e revisão. Em especial, **não foi testado** o `puppeteer-core` 25 com o `chromium` do Debian bookworm, que é mais antigo que o Chrome-alvo do puppeteer (o protocolo CDP costuma ser tolerante; risco baixo, mas real). O **teste de fumaça da seção 5 é o portão** antes de trocar o tráfego.
+> **O que NÃO foi validado:** a máquina de desenvolvimento não tem Docker, então o `Dockerfile` **não foi construído nem executado** aqui (estado: não validado nesta máquina). Foi conferido apenas por testes estáticos (`tests/deploy-files.test.js`) e revisão. Em especial, **não foi testado** o `puppeteer-core` 25 com o `chromium` do Debian bookworm: a versão do Chromium do Debian pode ser mais antiga que a que o puppeteer-core 25 tem como alvo (o protocolo CDP costuma ser tolerante, mas a combinação não foi testada). O **teste de fumaça da seção 5 é o portão** antes de trocar o tráfego.
 
 ## 1. O que a imagem contém
 
@@ -14,6 +14,14 @@ Guia para construir a imagem `boletim-senar:1.1` (com suporte a `BASE_PATH`) e s
 ## 2. Arquivo de variáveis (fora do repositório)
 
 Crie `/etc/boletim/boletim.env` (modo `600`, dono `root`). O `docker run --env-file` lê linhas `CHAVE=valor` **cruas**: sem aspas (elas viram parte do valor), sem `export`, sem espaços em volta do `=`, e sem comentário na mesma linha do valor (`#` só funciona no início da linha).
+
+**O arquivo precisa ter fim de linha Unix (LF).** Se for editado no Windows (CRLF), `COOKIE_SECURE=false\r` vira outro valor (o app trata como `true`) e o login entra em laço com cookie `secure`. Confira:
+
+```bash
+file /etc/boletim/boletim.env          # não pode dizer "with CRLF line terminators"
+grep -c $'\r' /etc/boletim/boletim.env # deve imprimir 0
+# corrigir, se preciso:  sudo sed -i 's/\r$//' /etc/boletim/boletim.env
+```
 
 ```
 DB_HOST=172.17.0.1
@@ -69,7 +77,7 @@ Por que `--shm-size=512m` e `--init`:
 Verificação:
 
 ```bash
-docker ps --filter name=boletim          # STATUS "Up ... (healthy)" após ~30 s
+docker ps --filter "name=^/boletim\$"     # STATUS "Up ... (healthy)" após ~30 s
 docker logs --tail 50 boletim            # sem erros de banco/configuração
 curl -i http://127.0.0.1:3100/saude                 # 200 {"ok":true}
 curl -i http://127.0.0.1:3100/boletim_ti/saude      # 200 {"ok":true}
@@ -92,8 +100,8 @@ Renderiza uma edição de exemplo com o Chromium **do contêiner** e confere PDF
 
 ```bash
 docker exec boletim node scripts/smoke-export.js /tmp/smoke      # esperado: todas as linhas PASS, código de saída 0
-docker cp boletim:/tmp/smoke ./smoke-boletim                     # copia os arquivos para inspeção
-ls -l ./smoke-boletim
+docker cp boletim:/tmp/smoke /tmp/smoke-boletim                 # copia os arquivos para inspeção (fora do checkout do git)
+ls -l /tmp/smoke-boletim
 ```
 
 Abra o PDF e os PNGs: o final do bloco "Dica" (“Teste de glifos”) deve mostrar ícones/emoji, não quadrados.
@@ -116,5 +124,5 @@ docker run --rm --init --shm-size=512m -e CHROMIUM_NO_SANDBOX=1 boletim-senar:1.
 - O `HEALTHCHECK` usa `fetch` do Node 22 (`node -e`); não depende de `curl` na imagem.
 - Tamanho esperado da imagem: algumas centenas de MB (Chromium e fontes).
 - Atualizações de segurança do Debian entram ao reconstruir a imagem (`docker build --pull`).
-- **Risco do Chromium do Debian:** o bookworm é a versão "oldstable" do Debian e o pacote `chromium` dele pode ficar atrás das correções de segurança do upstream. Mantenha a imagem reconstruída com frequência e avalie mover a base para um Debian mais novo (por exemplo `node:22-trixie-slim`). O `Dockerfile` atual foi mantido em bookworm.
+- **Versão do Chromium:** o pacote `chromium` do Debian bookworm pode ter versão diferente (mais antiga) da que o puppeteer-core 25 tem como alvo; o smoke test da seção 5 é o portão. Reconstrua a imagem periodicamente (`docker build --pull`) e, se necessário, avalie uma base Debian mais nova (por exemplo `node:22-trixie-slim`). O `Dockerfile` atual foi mantido em bookworm.
 - O `env-file` do Docker é só para o contêiner: não copie para ele `HOST=127.0.0.1` nem `CHROMIUM_PATH=/usr/bin/google-chrome-stable` do `deploy/boletim.env.example` (que é para uso com systemd). A imagem define `HOST=0.0.0.0` e `CHROMIUM_PATH=/usr/bin/chromium`, e esses valores precisam prevalecer (variáveis do `--env-file` sobrescrevem as do `ENV` da imagem).
