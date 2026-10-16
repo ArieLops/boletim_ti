@@ -21,8 +21,12 @@ function makeUsersRepo(pool) {
     return u;
   }
 
+  // Usuário da sessão (req.user / res.locals.user): sem senha_hash. O hash só passa por verifyLogin.
   async function getById(id) {
-    const [rows] = await pool.query('SELECT * FROM usuarios WHERE id = ?', [id]);
+    const [rows] = await pool.query(
+      'SELECT id, nome, login, perfil, ativo, trocar_senha, criado_em FROM usuarios WHERE id = ?',
+      [id]
+    );
     return rows[0] || null;
   }
 

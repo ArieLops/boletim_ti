@@ -3,7 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const { makeUsersRepo } = require('./repos/users');
-const { loadUser, csrf } = require('./auth/middleware');
+const { loadUser, csrf, wantsJson } = require('./auth/middleware');
 const { authRoutes } = require('./routes/auth');
 const { usersRoutes } = require('./routes/users');
 const { editionsRoutes } = require('./routes/editions');
@@ -90,7 +90,13 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
     if (err.type === 'entity.too.large') return res.status(413).json({ erro: 'corpo da requisição grande demais' });
     if (err.status === 400 || err.type === 'encoding.unsupported' || err.type === 'charset.unsupported') return res.status(400).json({ erro: 'requisição inválida' });
     console.error(err);
-    res.status(500).json({ erro: 'erro interno' });
+    if (wantsJson(req)) return res.status(500).json({ erro: 'erro interno' });
+    // Página HTML: tela de erro genérica (sem detalhes); se nem ela renderizar, texto simples.
+    res.status(500).render(
+      'erro',
+      { titulo: 'Erro interno', mensagem: 'Algo deu errado do nosso lado. Tente novamente; se continuar, avise a TI.' },
+      (e, html) => (e ? res.type('text').send('Erro interno') : res.send(html))
+    );
   });
 
   return app;

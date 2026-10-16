@@ -83,3 +83,14 @@ test('hash descartável usa o mesmo custo bcrypt dos hashes reais', async () => 
     process.env.BCRYPT_COST = anterior;
   }
 });
+
+test('getById não expõe senha_hash (vai para req.user/res.locals.user); verifyLogin ainda confere a senha', async () => {
+  const id = await users.createUser({ nome: 'Gabi', login: 'gabi-hash', senha: 'senha-gabi-1', perfil: 'editor' });
+  const u = await users.getById(id);
+  assert.ok(!('senha_hash' in u));
+  assert.equal(u.login, 'gabi-hash');
+  assert.equal(u.perfil, 'editor');
+  assert.equal(u.ativo, 1);
+  assert.equal(u.trocar_senha, 1);
+  assert.ok((await users.verifyLogin('gabi-hash', 'senha-gabi-1')).senha_hash);
+});

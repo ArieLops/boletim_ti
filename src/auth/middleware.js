@@ -65,9 +65,13 @@ function csrf(req, res, next) {
         ? res.status(403).json({ erro: 'token CSRF inválido' })
         : res.status(401).json({ erro: 'sessão expirada' });
     }
+    // Login aberto há muito tempo (token vencido): reexibe o formulário com token novo em vez de texto solto.
+    if (req.method === 'POST' && req.path === '/login') {
+      return res.status(403).render('login', { erro: 'A página expirou; tente entrar novamente.' });
+    }
     return res.status(403).send('Requisição inválida (token CSRF)');
   }
   next();
 }
 
-module.exports = { loadUser, requireSession, requireLogin, requireAdmin, csrf };
+module.exports = { wantsJson, loadUser, requireSession, requireLogin, requireAdmin, csrf };

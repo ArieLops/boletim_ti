@@ -102,7 +102,7 @@ function exportsRoutes() {
     } catch (e) {
       if (trataExportador(res, e)) return;
       console.error('Falha ao gerar os arquivos da publicação:', e);
-      return erro(res, 503, `Não foi possível gerar os arquivos: ${e.message}`);
+      return erro(res, 503, 'Não foi possível gerar os arquivos agora. Tente novamente ou avise a TI.');
     }
     const falha = await publicarTx(req, edicao, arquivos, fit);
     if (falha) return erro(res, falha.status, falha.msg);

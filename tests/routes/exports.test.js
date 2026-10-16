@@ -86,6 +86,26 @@ test('exportador falha ao publicar: 503, status rascunho e nenhum arquivo parcia
   }
 });
 
+test('falha inesperada do exportador ao publicar: 503 com mensagem fixa, sem vazar e.message', async () => {
+  const id = await nova();
+  const original = ex.pdf;
+  ex.pdf = async () => { throw new Error('ENOENT /usr/bin/chromium detalhe interno'); };
+  const logs = console.error;
+  const registrados = [];
+  console.error = (...a) => registrados.push(a);
+  try {
+    const r = await edu.post(`/edicoes/${id}/publicar`);
+    assert.equal(r.status, 503);
+    assert.equal(r.body.erro, 'Não foi possível gerar os arquivos agora. Tente novamente ou avise a TI.');
+    assert.ok(!/ENOENT|chromium/i.test(r.text));
+    assert.ok(registrados.some((a) => a.some((x) => x instanceof Error && /ENOENT/.test(x.message))), 'erro real deve ser logado');
+    assert.equal(await statusDe(id), 'rascunho');
+  } finally {
+    console.error = logs;
+    ex.pdf = original;
+  }
+});
+
 test('falha inesperada ao gravar na publicação desfaz tudo (atomicidade)', async () => {
   const id = await nova();
   const original = ctx.app.locals.files.saveFiles;
