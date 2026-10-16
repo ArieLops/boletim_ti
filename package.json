@@ -4,6 +4,9 @@
   "private": true,
   "description": "Comunicado Semanal SENAR-RS",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node src/server.js",
     "test": "node --env-file=.env.test --test \"tests/**/*.test.js\""
@@ -16,7 +19,7 @@
     "express-mysql-session": "^3.0.3",
     "express-session": "^1.19.0",
     "mysql2": "^3.24.6",
-    "puppeteer-core": "^25.14.0"
+    "puppeteer-core": "^24.43.1"
   },
   "devDependencies": {
     "supertest": "^7.3.1"

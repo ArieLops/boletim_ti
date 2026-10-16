@@ -44,3 +44,12 @@ test('alturaMm customizada', async () => {
   assert.equal(r.scale, 0.75);
   assert.equal(r.estouro, false);
 });
+
+test('piso que nao e multiplo do passo (0.72) e o ultimo escala testada', async () => {
+  const testados = [];
+  const r = await pickScale(async (sc) => { testados.push(sc); return 1000; }, { piso: 0.72 });
+  assert.equal(testados[testados.length - 1], 0.72);
+  assert.deepEqual(testados, [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.72]);
+  assert.deepEqual(r.scale, 0.72);
+  assert.equal(r.estouro, true);
+});

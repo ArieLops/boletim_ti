@@ -123,3 +123,114 @@ test('close: trabalhos apos o encerramento sao rejeitados', async () => {
   await e.close();
   await assert.rejects(e.fit(vazia), /encerrado/);
 });
+
+const paginasPdf = (buf) => (buf.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g) || []).length;
+// o Chromium headless mantem 1 aba inicial (about:blank); as paginas dos trabalhos nao podem se acumular
+async function semVazamento(e) {
+  const antes = await e._paginasAbertas();
+  assert.ok(antes <= 1, `paginas abertas: ${antes}`);
+  await e.fit(vazia);
+  assert.equal(await e._paginasAbertas(), antes);
+}
+const validoPath = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+
+test('PDF de 30 cards longos (estouro) tem exatamente 1 pagina', async () => {
+  assert.equal(paginasPdf(await exp.pdf(trinta)), 1);
+});
+
+test('pngEmail: pagina preenche a largura (layout de 794 px ampliado) com rodape no fim', async () => {
+  // as guardas de largura/rodape rodam dentro do exportador (lancam se falharem); aqui conferimos o sucesso com 3 conteudos distintos
+  for (const i of [vazia, normal, trinta]) assert.deepEqual(ihdr(await exp.pngEmail(i)), { w: 1240, h: 1754 });
+});
+
+test('escala via variavel CSS no mesmo documento == render novo naquela escala (<= 0.2 mm)', async () => {
+  const puppeteer = require('puppeteer-core');
+  const browser = await puppeteer.launch({ executablePath: validoPath, headless: true, args: ['--disable-gpu', '--font-render-hinting=none'] });
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+    const medir = () => page.$eval('#conteudo', (el) => el.scrollHeight * 25.4 / 96);
+    for (const dados of [trinta, normal]) {
+      await page.setContent(renderEdition({ ...dados, mode: 'a4', scale: 1 }), { waitUntil: 'load' });
+      for (const sc of [0.9, 0.8, 0.75]) {
+        await page.evaluate(async (s) => {
+          document.documentElement.style.setProperty('--escala', String(s));
+          await document.fonts.ready;
+          await new Promise((r) => requestAnimationFrame(() => r()));
+        }, sc);
+        const viaVariavel = await medir();
+        const fresco = await browser.newPage();
+        await fresco.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+        await fresco.setContent(renderEdition({ ...dados, mode: 'a4', scale: sc }), { waitUntil: 'load' });
+        const novo = await fresco.$eval('#conteudo', (el) => el.scrollHeight * 25.4 / 96);
+        await fresco.close();
+        assert.ok(Math.abs(viaVariavel - novo) <= 0.2, `escala ${sc}: ${viaVariavel} vs ${novo}`);
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('paginas sao fechadas apos os trabalhos (inclusive os que falham)', async () => {
+  await exp.pdf(normal);
+  await exp.pngEmail(normal);
+  await semVazamento(exp);
+  const e = createExporter({ renderHtml: () => { throw new Error('x'); } });
+  try {
+    await assert.rejects(e.pdf(normal), /x/);
+    assert.ok(await e._paginasAbertas() <= 1);
+  } finally {
+    await e.close();
+  }
+});
+
+test('relanca o navegador apos queda (close por fora e kill do processo)', async () => {
+  const e = createExporter({ renderHtml: renderEdition });
+  try {
+    await e.fit(vazia);
+    const b1 = await e._browser();
+    await b1.close();
+    assert.equal((await e.pdf(normal)).subarray(0, 4).toString(), '%PDF');
+    const b2 = await e._browser();
+    assert.notEqual(b1, b2);
+    b2.process().kill('SIGKILL');
+    await new Promise((r) => b2.once('disconnected', r));
+    assert.equal(ihdr(await e.pngWhatsapp(normal)).w, 1080);
+    assert.notEqual(await e._browser(), b2);
+  } finally {
+    await e.close();
+  }
+});
+
+test('trabalho que excede o timeout rejeita com erro claro e o proximo da fila funciona', async () => {
+  const lento = '<!doctype html><script>const t=Date.now();while(Date.now()-t<15000){}</script>';
+  const e = createExporter({ renderHtml: (o) => (o.edicao.numero === 77 ? lento : renderEdition(o)), timeoutMs: 1500 });
+  try {
+    const t0 = Date.now();
+    const ruim = e.pdf({ ...normal, edicao: { ...edicao, numero: 77 } });
+    const bom = e.pdf(normal);
+    await assert.rejects(ruim, /Tempo limite/);
+    assert.ok(Date.now() - t0 < 8000, 'timeout nao esperou o loop terminar');
+    assert.equal((await bom).subarray(0, 4).toString(), '%PDF');
+    await semVazamento(e);
+  } finally {
+    await e.close();
+  }
+});
+
+test('CHROMIUM_PATH apontando para arquivo que nao e Chromium (ou diretorio) -> ExportUnavailableError; recupera depois', async () => {
+  const original = process.env.CHROMIUM_PATH;
+  const e = createExporter({ renderHtml: renderEdition, timeoutMs: 8000 });
+  try {
+    process.env.CHROMIUM_PATH = process.execPath; // node, nao um navegador
+    await assert.rejects(e.pdf(normal), ExportUnavailableError);
+    process.env.CHROMIUM_PATH = require('node:path').dirname(process.execPath); // diretorio
+    await assert.rejects(e.pdf(normal), (err) => err instanceof ExportUnavailableError && /CHROMIUM_PATH/.test(err.message));
+    process.env.CHROMIUM_PATH = `  ${validoPath}  `; // espacos sao aparados
+    assert.equal((await e.pdf(normal)).subarray(0, 4).toString(), '%PDF');
+  } finally {
+    if (original === undefined) delete process.env.CHROMIUM_PATH; else process.env.CHROMIUM_PATH = original;
+    await e.close();
+  }
+});
