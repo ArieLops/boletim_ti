@@ -1,0 +1,14 @@
+{
+  "name": "comunicado-semanal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Comunicado Semanal SENAR-RS",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --env-file=.env.test --test \"tests/**/*.test.js\""
+  },
+  "dependencies": {
+    "mysql2": "^3.24.6"
+  }
+}
