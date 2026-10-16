@@ -5,7 +5,7 @@
   "description": "Comunicado Semanal SENAR-RS",
   "type": "commonjs",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "start": "node src/server.js",
@@ -19,9 +19,14 @@
     "express-mysql-session": "^3.0.3",
     "express-session": "^1.19.0",
     "mysql2": "^3.24.6",
-    "puppeteer-core": "^24.43.1"
+    "puppeteer-core": "^25.14.0"
   },
   "devDependencies": {
     "supertest": "^7.3.1"
+  },
+  "overrides": {
+    "express-mysql-session": {
+      "mysql2": "$mysql2"
+    }
   }
 }

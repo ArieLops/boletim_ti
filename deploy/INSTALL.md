@@ -9,7 +9,7 @@ Arquitetura: o Node escuta **somente em 127.0.0.1:3000**; o nginx recebe o HTTPS
 - Ubuntu 22.04 ou 24.04 com acesso `sudo`.
 - MySQL 8 ou MariaDB 10.6+ (local ou remoto).
 - Nome DNS interno (ex.: `boletim.senar-rs.com.br`) e certificado HTTPS (CA interna ou Let's Encrypt).
-- Node.js 20.6 ou superior (necessário para `node --env-file`; o NodeSource 20.x atende).
+- Node.js 22.12 ou superior (exigido pelo puppeteer-core 25; o NodeSource 22.x atende).
 - Cerca de 500 MB livres (Chrome + dependências) e 1 GB de RAM livre para a exportação.
 
 ```bash
@@ -17,12 +17,12 @@ sudo apt update
 sudo apt install -y curl ca-certificates gnupg nginx mysql-server   # ou mariadb-server; pule o que já existir
 ```
 
-## 1. Node.js 20+ (NodeSource)
+## 1. Node.js 22.12+ (NodeSource)
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
-node -v           # deve mostrar v20 ou superior
+node -v           # deve mostrar v22.12 ou superior
 command -v node   # normalmente /usr/bin/node (usado no boletim.service)
 ```
 

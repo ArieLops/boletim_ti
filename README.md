@@ -1,6 +1,6 @@
 # Comunicado Semanal SENAR-RS
 
-Sistema web interno para montar o Comunicado Semanal da TI do SENAR-RS: o usuário edita os blocos (destaque, cards, dica), vê a prévia e publica a edição, que gera o **PDF** (uma página A4), o **PNG para e-mail** (1240x1754) e o **PNG para WhatsApp** (largura 1080). Node.js 20+, Express 5, MySQL/MariaDB; a exportação usa Chromium headless (puppeteer-core).
+Sistema web interno para montar o Comunicado Semanal da TI do SENAR-RS: o usuário edita os blocos (destaque, cards, dica), vê a prévia e publica a edição, que gera o **PDF** (uma página A4), o **PNG para e-mail** (1240x1754) e o **PNG para WhatsApp** (largura 1080). Node.js 22.12+ (mínimo exigido pelo puppeteer-core 25; ver [docs/seguranca-dependencias.md](docs/seguranca-dependencias.md)), Express 5, MySQL/MariaDB; a exportação usa Chromium headless (puppeteer-core).
 
 Especificação: `docs/superpowers/specs/2026-10-16-comunicado-semanal-design.md`.
 
