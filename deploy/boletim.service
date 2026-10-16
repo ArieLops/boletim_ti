@@ -1,0 +1,32 @@
+# /etc/systemd/system/boletim.service
+# Comunicado Semanal SENAR-RS. Instalar: veja deploy/INSTALL.md.
+[Unit]
+Description=Comunicado Semanal SENAR-RS
+After=network.target mysql.service mariadb.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=boletim
+Group=boletim
+WorkingDirectory=/opt/boletim
+EnvironmentFile=/etc/boletim/boletim.env
+# Ajuste o caminho do node se instalou por nvm/outro meio (confira com: command -v node).
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=3
+# O app encerra o Chromium e o pool ao receber SIGTERM (limite interno de 10 s).
+TimeoutStopSec=15
+
+# Endurecimento compatível com o Chromium headless.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+# NÃO adicione opções mais estritas sem testar a exportação (scripts/smoke-export.js):
+#  - MemoryDenyWriteExecute=yes  quebra o V8/JIT do Chromium;
+#  - RestrictNamespaces=yes      impede o sandbox do Chromium (user namespaces);
+#  - PrivateDevices, SystemCallFilter restritivo e ProtectKernelTunables também costumam quebrá-lo.
+
+[Install]
+WantedBy=multi-user.target

@@ -39,7 +39,25 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
   app.locals.history = makeHistoryRepo(pool);
   app.locals.files = makeFilesRepo(pool);
   app.locals.settings = makeSettingsRepo(pool);
-  app.locals.close = () => store.close();
+  // O store arma um setInterval ao ficar pronto; fechar antes disso deixaria o timer vivo (processo não sai).
+  app.locals.close = async () => {
+    let timer;
+    const limite = new Promise((resolve) => { timer = setTimeout(resolve, 3000); });
+    await Promise.race([store.onReady().catch(() => {}), limite]);
+    clearTimeout(timer);
+    return store.close();
+  };
+
+  // Saúde para monitoramento: sem sessão/login, ping barato no banco, sem detalhes no erro.
+  app.get('/saude', async (req, res) => {
+    try {
+      await app.locals.pool.query('SELECT 1');
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('saude: falha no banco:', err.code || err.message);
+      res.status(503).json({ ok: false });
+    }
+  });
 
   // Estáticos (css/js das telas) antes da sessão: não criam sessão nem exigem login.
   app.use(express.static(path.join(__dirname, 'public')));

@@ -67,6 +67,15 @@ function matar(browser) {
   return browser.close().catch(() => {});
 }
 
+// Argumentos de lancamento do Chromium. --no-sandbox so quando necessario: root no Linux (o sandbox
+// recusa rodar) ou CHROMIUM_NO_SANDBOX=1 (ultimo recurso: Ubuntu 24.04 com AppArmor restringindo
+// user namespaces, Chromium via snap, containers).
+function chromiumArgs({ platform = process.platform, uid = process.getuid ? process.getuid() : undefined, env = process.env } = {}) {
+  const args = ['--disable-gpu', '--font-render-hinting=none'];
+  if ((platform === 'linux' && uid === 0) || env.CHROMIUM_NO_SANDBOX === '1') args.push('--no-sandbox');
+  return args;
+}
+
 function createExporter({ renderHtml, piso = 0.75, hooks = {}, timeoutMs = TIMEOUT_PADRAO_MS } = {}) {
   if (typeof renderHtml !== 'function') throw new TypeError('createExporter: renderHtml é obrigatório');
   const limiteCurto = Math.min(LIMITE_CURTO_MS, timeoutMs);
@@ -78,8 +87,7 @@ function createExporter({ renderHtml, piso = 0.75, hooks = {}, timeoutMs = TIMEO
     if (!browserPromise) {
       const p = (async () => {
         const executablePath = resolverNavegador();
-        const args = ['--disable-gpu', '--font-render-hinting=none'];
-        if (process.platform === 'linux' && process.getuid && process.getuid() === 0) args.push('--no-sandbox');
+        const args = chromiumArgs();
         let browser;
         try {
           browser = await puppeteer.launch({ executablePath, headless: true, args, timeout: timeoutMs });
@@ -261,4 +269,4 @@ function createExporter({ renderHtml, piso = 0.75, hooks = {}, timeoutMs = TIMEO
   };
 }
 
-module.exports = { createExporter, ExportUnavailableError };
+module.exports = { createExporter, ExportUnavailableError, chromiumArgs };

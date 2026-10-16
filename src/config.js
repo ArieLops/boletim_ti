@@ -9,6 +9,7 @@ function loadConfig(env = process.env) {
   }
   return {
     port: Number(env.PORT) || 3000,
+    host: env.HOST || '127.0.0.1',
     db: {
       host: env.DB_HOST,
       port: Number(env.DB_PORT) || 3306,
