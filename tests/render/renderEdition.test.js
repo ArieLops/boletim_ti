@@ -51,3 +51,75 @@ test('modos a4 e strip, paleta customizada e rodape', () => {
   assert.ok(c.includes('--verde-escuro:#123456'));
   assert.ok(c.includes('X&lt;b&gt;') && c.includes('a@b.c'));
 });
+
+const bodyOf = (html) => html.slice(html.indexOf('</style>'));
+const cards = (n) => Array.from({ length: n }, (_, i) => card(i + 1));
+const HOSTIL = '&<b>x</b><script>alert(1)</script>';
+
+test('todos os campos de todos os blocos e o subtitulo sao escapados', () => {
+  const mk = (campos) => Object.fromEntries(campos.map((c) => [c, HOSTIL + c]));
+  const blocos = [
+    { id: 1, tipo: 'destaque', ordem: 1, dados: mk(['etiqueta', 'titulo', 'texto', 'chamada']) },
+    { id: 2, tipo: 'card', ordem: 2, dados: mk(['etiqueta', 'titulo', 'texto']) },
+    { id: 3, tipo: 'dica', ordem: 3, dados: mk(['titulo', 'texto']) },
+    { id: 4, tipo: 'texto', ordem: 4, dados: mk(['titulo', 'texto']) },
+  ];
+  const b = bodyOf(renderEdition({ edicao: { ...edicao, subtitulo: HOSTIL + 'sub' }, blocos }));
+  assert.ok(!b.includes('<script>') && !b.includes('<b>x'));
+  for (const c of ['etiqueta', 'titulo', 'texto', 'chamada', 'sub']) {
+    assert.ok(b.includes(`&amp;&lt;b&gt;x&lt;/b&gt;&lt;script&gt;alert(1)&lt;/script&gt;${c}`), c);
+  }
+});
+
+test('ultimo-impar: pares nao marcam, impares marcam so o ultimo', () => {
+  const count = (n) => (renderEdition({ edicao, blocos: cards(n) }).match(/<article class="bloco bloco-card ultimo-impar/g) || []).length;
+  assert.strictEqual(count(2), 0);
+  assert.strictEqual(count(4), 0);
+  assert.strictEqual(count(1), 1);
+  assert.strictEqual(count(3), 1);
+  assert.ok(/bloco-card ultimo-impar"><span class="etiqueta">E1/.test(renderEdition({ edicao, blocos: cards(1) })));
+  assert.ok(!/ultimo-impar"><span class="etiqueta">E[12]</.test(renderEdition({ edicao, blocos: cards(3) })));
+});
+
+test('tipo desconhecido nao quebra e nao gera marcacao', () => {
+  const html = renderEdition({ edicao, blocos: [{ id: 1, tipo: 'xyz', ordem: 1, dados: { titulo: 'SEGREDO' } }] });
+  assert.ok(!html.includes('SEGREDO'));
+  assert.ok(!bodyOf(html).includes('class="bloco'));
+});
+
+test('mes_ano e numero malformados nao lancam', () => {
+  for (const mes_ano of [null, undefined, '2026-13', 'abc']) {
+    assert.doesNotThrow(() => renderEdition({ edicao: { ...edicao, mes_ano }, blocos: [] }));
+  }
+  assert.ok(renderEdition({ edicao: { ...edicao, mes_ano: '2026-13' }, blocos: [] }).includes('2026-13'));
+  for (const numero of [undefined, null, 1.5, 'x', NaN]) {
+    assert.doesNotThrow(() => renderEdition({ edicao: { ...edicao, numero }, blocos: [] }));
+  }
+});
+
+test('settings.cores malicioso e ignorado', () => {
+  const html = renderEdition({
+    edicao,
+    blocos: [],
+    settings: { cores: { '--a': 'red</style><script>x()</script>', '--b;{}': '#fff', '--c': 'red;}body{display:none', '--teal': '#111111' } },
+  });
+  assert.strictEqual((html.match(/<\/style>/g) || []).length, 1);
+  assert.ok(!html.includes('--a:') && !html.includes('--b;') && !html.includes('--c:') && !html.includes('display:none'));
+  assert.ok(html.includes('--teal:#111111'));
+});
+
+test('palavra gigante: regra overflow-wrap cobre etiqueta e chamada', () => {
+  const g = 'W'.repeat(60);
+  const html = renderEdition({
+    edicao,
+    blocos: [
+      { id: 1, tipo: 'destaque', ordem: 1, dados: { etiqueta: g, titulo: g, texto: g, chamada: g } },
+      { id: 2, tipo: 'card', ordem: 2, dados: { etiqueta: g, titulo: g, texto: g } },
+    ],
+  });
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  const regra = /([^{}]*)\{[^}]*overflow-wrap:anywhere[^}]*\}/.exec(css)[1];
+  assert.ok(regra.includes('.etiqueta') && regra.includes('.chamada') && regra.includes('.texto'));
+  assert.ok(/\.etiqueta\{[^}]*max-width:100%/.test(css));
+  assert.ok(bodyOf(html).includes('<article class="bloco bloco-card ultimo-impar"><span class="etiqueta">' + g));
+});
