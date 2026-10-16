@@ -39,7 +39,13 @@ sudo apt install -y ./google-chrome-stable_current_amd64.deb   # o apt resolve a
 
 Alternativa: um Chromium que não seja snap (pacote .deb de outra fonte aprovada pela TI). Em qualquer caso, informe o caminho em `CHROMIUM_PATH` (Passo 6).
 
-- **Fontes:** nada a instalar; o app embute a fonte Inter nos documentos.
+- **Fontes (instale):** o app embute a fonte Inter, mas **só o subconjunto latino** (letras, números, pontuação). Emoji e símbolos como ✅ ⚠️ 📌 → ✓ não estão nela e dependem das fontes do sistema; um servidor sem interface gráfica normalmente não tem nenhuma, e esses caracteres saem como **quadrados vazios** no PDF e nos PNG. Instale:
+
+  ```bash
+  sudo apt install -y fonts-noto-color-emoji fonts-noto-core fonts-liberation
+  ```
+
+  (`fonts-liberation` costuma vir como dependência do .deb do Chrome; está listada para ficar explícita. O Passo 10 mostra como conferir.)
 - **Ubuntu 24.04:** o AppArmor restringe *user namespaces* não privilegiados, o que pode impedir o sandbox do Chrome. O Chrome do .deb costuma trazer seu próprio perfil e funcionar. Se o teste do Passo 10 falhar com mensagens de sandbox/namespace, o **último recurso** é `CHROMIUM_NO_SANDBOX=1` no `boletim.env` (o Chrome roda sem sandbox; aceitável aqui porque só renderiza HTML gerado pelo próprio sistema, mas prefira corrigir o AppArmor se a TI puder). O mesmo vale para contêineres.
 
 ## 3. Usuário do sistema e pastas
@@ -52,13 +58,22 @@ sudo chown boletim:boletim /opt/boletim
 
 ## 4. Copiar o código e instalar dependências
 
-Copie o projeto para `/opt/boletim` (scp/rsync/git; não copie `node_modules`, `.env`, `.env.test`).
+O código é enviado como um pacote do `git archive` (só os arquivos versionados e necessários à produção; ficam de fora `docs/`, `tests/`, `.tools`, `.superpowers` e os scripts de desenvolvimento, conforme `.gitattributes`). No Windows não há `rsync`; `git`, `scp` e `tar` bastam. **Commite antes**: o pacote contém apenas o que está no `HEAD`.
+
+Na máquina de desenvolvimento:
 
 ```bash
-# exemplo, a partir da máquina de desenvolvimento (rsync para uma pasta temporária no servidor):
-rsync -a --exclude node_modules --exclude '.env*' --exclude .git ./ usuario@servidor:/tmp/boletim-src/
-# no servidor:
-sudo rsync -a /tmp/boletim-src/ /opt/boletim/
+git archive --format=tar.gz -o boletim.tar.gz HEAD
+scp boletim.tar.gz usuario@servidor:/tmp/boletim.tar.gz
+```
+
+No servidor, extraia primeiro numa pasta de **staging de propriedade do root** (`/usr/local/src/boletim`). O usuário do serviço não consegue alterá-la; dela saem a cópia de produção e o script de backup (Passos 12 e 13):
+
+```bash
+sudo apt install -y rsync          # se ainda não existir
+sudo rm -rf /usr/local/src/boletim && sudo mkdir -p /usr/local/src/boletim
+sudo tar -xzf /tmp/boletim.tar.gz --no-same-owner -C /usr/local/src/boletim
+sudo rsync -a --delete --exclude node_modules /usr/local/src/boletim/ /opt/boletim/
 sudo chown -R boletim:boletim /opt/boletim
 cd /opt/boletim
 sudo -u boletim npm ci --omit=dev
@@ -180,7 +195,7 @@ cd /opt/boletim
 sudo -u boletim node --env-file=/etc/boletim/boletim.env scripts/smoke-export.js /tmp/smoke
 ```
 
-Esperado: três linhas `PASS` (PDF com 1 página, PNG de e-mail 1240x1754, PNG de WhatsApp com largura 1080) e `RESULTADO: PASS` (código de saída 0). Abra os arquivos gerados para conferir o visual. Em caso de `FAIL`:
+Esperado: três linhas `PASS` (PDF com 1 página, PNG de e-mail 1240x1754, PNG de WhatsApp com largura 1080) e `RESULTADO: PASS` (código de saída 0). Abra o PDF (`comunicado-smoke.pdf`) e o PNG (`comunicado-smoke-email.png`) e procure, no fim do bloco de dica, a linha **"Teste de glifos: ✅ ⚠️ 📌 → ✓"**: ela deve mostrar ícones; se aparecerem quadrados vazios, as fontes do Passo 2 não foram instaladas (ou o Chrome precisa ser reiniciado depois de instalá-las). O resultado PASS/FAIL do script não avalia isso: a conferência é visual. Em caso de `FAIL`:
 
 1. "Navegador ... não encontrado": corrija `CHROMIUM_PATH` (`ls -l` no caminho; não pode ser o atalho do snap).
 2. Erro mencionando sandbox/namespace/"No usable sandbox": no Ubuntu 24.04 veja o Passo 2; como último recurso adicione `CHROMIUM_NO_SANDBOX=1` ao `boletim.env` e rode de novo.
@@ -190,7 +205,14 @@ Esperado: três linhas `PASS` (PDF com 1 página, PNG de e-mail 1240x1754, PNG d
 ## 11. Verificação final
 
 - `https://boletim.senar-rs.com.br` abre; login do administrador; troca de senha.
-- Criar edição, publicar, baixar PDF, PNG de e-mail e PNG de WhatsApp.
+- Criar edição, publicar, baixar PDF, PNG de e-mail e PNG de WhatsApp. **Use um número descartável alto (ex.: 999) no campo "Número" da nova edição**, para que a primeira edição de verdade possa ser a 001. Ao terminar, apague a edição de teste (blocos, histórico e arquivos publicados vão junto, por `ON DELETE CASCADE`):
+
+  ```bash
+  sudo mysql boletim -e "DELETE FROM edicoes WHERE numero=999;"
+  sudo mysql boletim -e "SELECT numero, titulo FROM edicoes;"    # confira: a de teste não aparece mais
+  ```
+
+  Se você criou a de teste com o número sugerido (001) em vez de 999, apague-a do mesmo jeito (`numero=1`) antes de usar o sistema de verdade.
 - `sudo systemctl restart boletim` e confirmar que os dados continuam.
 - De outro computador, `http://IP-DO-SERVIDOR:3000` **não** deve responder (o Node só escuta em localhost).
 
@@ -205,9 +227,10 @@ user=boletim
 password=TROQUE-PELA-SENHA-DO-BANCO
 EOF
 sudo chown root:root /etc/boletim/backup.cnf && sudo chmod 600 /etc/boletim/backup.cnf   # root:root 600
-# Cópia de propriedade do root: o cron roda como root e NÃO deve executar um arquivo que o usuário
-# do serviço (boletim) possa alterar. Refaça este comando sempre que o backup.sh mudar (veja o Passo 13).
-sudo install -o root -g root -m 700 /opt/boletim/deploy/backup.sh /usr/local/sbin/boletim-backup
+# Cópia de propriedade do root, instalada a partir do STAGING do root (Passo 4), nunca de /opt/boletim:
+# o cron roda como root e não deve executar um arquivo que o usuário do serviço (boletim) possa alterar.
+# Refaça este comando sempre que o backup.sh mudar (Passo 13); antes, compare: diff /usr/local/src/boletim/deploy/backup.sh /usr/local/sbin/boletim-backup
+sudo install -o root -g root -m 700 /usr/local/src/boletim/deploy/backup.sh /usr/local/sbin/boletim-backup
 sudo /usr/local/sbin/boletim-backup        # teste manual; deve imprimir "OK ..."
 ls -l /var/backups/boletim/
 ```
@@ -239,19 +262,24 @@ sudo systemctl start boletim
 
 ## 13. Atualização
 
-Faça um backup antes e copie a nova versão para o servidor (mesma cópia do Passo 4, mesmas exclusões; `.env*` e `node_modules` do servidor são preservados):
+Faça um backup antes e envie a nova versão do mesmo modo do Passo 4 (pacote `git archive` extraído no staging do root; `node_modules` do servidor é preservado):
 
 ```bash
 sudo /usr/local/sbin/boletim-backup
-# na máquina de desenvolvimento:
-rsync -a --exclude node_modules --exclude '.env*' --exclude .git ./ usuario@servidor:/tmp/boletim-src/
+# na máquina de desenvolvimento (com tudo commitado):
+git archive --format=tar.gz -o boletim.tar.gz HEAD
+scp boletim.tar.gz usuario@servidor:/tmp/boletim.tar.gz
 # no servidor (guarde a versão anterior para reversão):
 sudo rsync -a --exclude node_modules /opt/boletim/ /opt/boletim.anterior/
-sudo rsync -a --exclude node_modules --exclude '.env*' /tmp/boletim-src/ /opt/boletim/
+sudo rm -rf /usr/local/src/boletim && sudo mkdir -p /usr/local/src/boletim
+sudo tar -xzf /tmp/boletim.tar.gz --no-same-owner -C /usr/local/src/boletim
+sudo rsync -a --delete --exclude node_modules /usr/local/src/boletim/ /opt/boletim/
 sudo chown -R boletim:boletim /opt/boletim
 cd /opt/boletim
 sudo -u boletim npm ci --omit=dev
-sudo install -o root -g root -m 700 /opt/boletim/deploy/backup.sh /usr/local/sbin/boletim-backup   # refaz a cópia do backup
+# refaz a cópia do backup a partir do staging do root (veja antes o que mudou):
+diff /usr/local/src/boletim/deploy/backup.sh /usr/local/sbin/boletim-backup || true
+sudo install -o root -g root -m 700 /usr/local/src/boletim/deploy/backup.sh /usr/local/sbin/boletim-backup
 # se deploy/boletim.service ou o site nginx mudaram, copie-os de novo (Passos 8 e 9); para o service: sudo systemctl daemon-reload
 sudo systemctl restart boletim
 journalctl -u boletim -n 20 --no-pager

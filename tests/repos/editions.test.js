@@ -181,3 +181,14 @@ test('findRepeatedSave: edição publicada nunca é atalho', async () => {
   await ed.setStatus(id, 'publicada', ana);
   assert.equal(await ed.findRepeatedSave(id, 'T'), null);
 });
+
+test('DELETE FROM edicoes (receita do INSTALL.md) remove blocos, histórico e arquivos publicados em cascata', async () => {
+  const id = await nova(999);
+  await ed.saveEdition(id, { versao: 1, campos: {}, blocos: [bloco('A')] }, ana);
+  await pool.query("INSERT INTO arquivos_publicados (edicao_id, tipo, conteudo, gerado_por) VALUES (?, 'pdf', 'x', ?)", [id, ana]);
+  const conta = async (t) => (await pool.query(`SELECT COUNT(*) AS n FROM ${t} WHERE edicao_id = ?`, [id]))[0][0].n;
+  assert.ok((await conta('blocos')) > 0 && (await conta('historico')) > 0 && (await conta('arquivos_publicados')) > 0);
+  await pool.query('DELETE FROM edicoes WHERE numero=999;');
+  for (const t of ['blocos', 'historico', 'arquivos_publicados']) assert.equal(await conta(t), 0, t);
+  assert.equal(await ed.getEdition(id), null);
+});

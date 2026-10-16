@@ -4,10 +4,10 @@
 #   [client]
 #   user=boletim
 #   password=SENHA_DO_BANCO
-# Uso (root, via cron): /opt/boletim/deploy/backup.sh
+# Uso (root, via cron): /usr/local/sbin/boletim-backup  (cópia de propriedade do root; veja INSTALL.md)
 # Saída: /var/backups/boletim/boletim-AAAAMMDD-HHMM.sql.gz ; remove arquivos com mais de 28 dias.
 # --no-tablespaces: evita exigir o privilégio global PROCESS no MySQL 8.0.21+ (o usuário só tem boletim.*).
-# Instalação recomendada: cópia de propriedade do root (veja INSTALL.md): /usr/local/sbin/boletim-backup
+# Instalação: a partir do staging do root (/usr/local/src/boletim/deploy/backup.sh), nunca de /opt/boletim.
 # Falhas saem com código != 0 e mensagem em stderr (o cron envia por e-mail).
 set -euo pipefail
 

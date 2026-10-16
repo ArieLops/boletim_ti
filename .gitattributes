@@ -1,3 +1,12 @@
 * text=auto
 *.sh text eol=lf
 deploy/* text eol=lf
+
+# Fora do pacote de implantacao (git archive): so o necessario para rodar em producao.
+docs/ export-ignore
+tests/ export-ignore
+.tools/ export-ignore
+.superpowers/ export-ignore
+scripts/dev-server.js export-ignore
+scripts/preview-demo.js export-ignore
+.gitattributes export-ignore
