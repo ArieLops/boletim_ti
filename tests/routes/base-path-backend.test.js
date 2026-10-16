@@ -139,6 +139,17 @@ for (const [nome, base] of [['raiz', ''], ['prefixado', PREFIXO]]) {
     assert.equal(sem.status, 401);
     const form = await request(getApp()).post(base + '/login').type('form').send({ login: 'edu', senha: 'senha-edu-123' });
     assert.equal(form.status, 403);
+    // distingue o ramo do /login (tela de login reexibida) do tratamento genérico de CSRF
+    assert.match(form.type, /html/);
+    assert.match(form.text, /A página expirou/);
+  });
+
+  test(`[${nome}] estáticos (css/js) respondem 200 sem Set-Cookie`, async () => {
+    for (const arq of ['app.css', 'api.js', 'editor.js', 'editor-lib.js', 'nova.js', 'configuracoes.js']) {
+      const res = await request(getApp()).get(`${base}/${arq}`);
+      assert.equal(res.status, 200, arq);
+      assert.equal(cookies(res).length, 0, arq);
+    }
   });
 
   test(`[${nome}] /saude`, async () => {
@@ -167,6 +178,22 @@ test('[prefixado] fora do prefixo: 404 texto simples, sem Set-Cookie', async () 
   const post = await request(appPref).post('/login').type('form').send({ login: 'edu', senha: 'x' });
   assert.equal(post.status, 404);
   assert.equal(cookies(post).length, 0);
+});
+
+test('[prefixado] estáticos fora do prefixo: 404', async () => {
+  for (const url of ['/app.css', '/api.js', '/editor.js']) {
+    const res = await request(appPref).get(url);
+    assert.equal(res.status, 404, url);
+    assert.equal(cookies(res).length, 0, url);
+  }
+});
+
+test('[prefixado] prefixo em caixa diferente: 404 sem Set-Cookie (roteamento sensível a maiúsculas)', async () => {
+  for (const url of ['/BOLETIM_TI/login', '/Boletim_Ti/login', '/BOLETIM_TI/app.css']) {
+    const res = await request(appPref).get(url);
+    assert.equal(res.status, 404, url);
+    assert.equal(cookies(res).length, 0, url);
+  }
 });
 
 test('[prefixado] GET /boletim_ti sem barra não é 500', async () => {

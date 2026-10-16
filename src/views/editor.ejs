@@ -12,7 +12,7 @@
       <button type="button" class="btn btn-claro" data-baixar="png-whatsapp">Baixar imagem (WhatsApp)</button>
       <button type="button" class="btn btn-primario" id="btn-publicar"<%- travado ? ' hidden' : '' %>>Publicar</button>
       <button type="button" class="btn btn-aviso" id="btn-reabrir"<%- travado ? '' : ' hidden' %>>Reabrir</button>
-      <a class="btn btn-claro" href="/edicoes/<%= edicao.id %>/historico" id="link-historico">Histórico</a>
+      <a class="btn btn-claro" href="<%= u('/edicoes/' + edicao.id + '/historico') %>" id="link-historico">Histórico</a>
     </div>
   </div>
 

@@ -9,6 +9,8 @@
 //   usuário: dev-admin    senha: dev-admin-123
 //   (trocar_senha = 0: entra direto, sem pedir troca de senha)
 //
+// BASE_PATH (ex.: BASE_PATH=/boletim_ti) publica a aplicação sob esse prefixo; sem ele, na raiz.
+//
 // Uso: npm run dev     (ou: node --env-file=.env.test scripts/dev-server.js)
 const mysql = require('mysql2/promise');
 const { migrate } = require('../src/db/migrate');
@@ -38,8 +40,8 @@ async function main() {
   }
 
   const exporter = createExporter({ renderHtml: renderEdition });
-  const app = createApp({ pool, exporter, cookieSecure: false, sessionSecret: 'segredo-somente-desenvolvimento', sessionHours: 8 });
-  const server = app.listen(PORTA, () => console.log(`Servidor de desenvolvimento em http://localhost:${PORTA}`));
+  const app = createApp({ pool, exporter, cookieSecure: false, sessionSecret: 'segredo-somente-desenvolvimento', sessionHours: 8, basePath: process.env.BASE_PATH });
+  const server = app.listen(PORTA, () => console.log(`Servidor de desenvolvimento em http://localhost:${PORTA}${app.locals.basePath}/`));
 
   let encerrando = false;
   async function encerrar() {

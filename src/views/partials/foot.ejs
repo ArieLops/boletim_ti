@@ -1,4 +1,4 @@
 </main>
-<% (locals.scripts || []).forEach(function (s) { %><script src="/<%= s %>"></script>
+<% (locals.scripts || []).forEach(function (s) { %><script src="<%= u('/' + s) %>"></script>
 <% }) %></body>
 </html>

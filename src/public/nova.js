@@ -20,7 +20,7 @@
     botao.disabled = true;
     try {
       const r = await Api.json('POST', '/edicoes', corpo);
-      if (r.ok && r.corpo && r.corpo.id) return window.location.assign('/edicoes/' + r.corpo.id);
+      if (r.ok && r.corpo && r.corpo.id) return window.location.assign(Api.url('/edicoes/' + r.corpo.id));
       const msg = (r.corpo && r.corpo.erro) || 'Não foi possível criar a edição.';
       if (r.status === 409 && /número/.test(msg)) {
         erroNumero.textContent = msg.charAt(0).toUpperCase() + msg.slice(1) + '.';

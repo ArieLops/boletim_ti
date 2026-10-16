@@ -6,23 +6,23 @@
   <caption class="so-leitor">Usuários cadastrados</caption>
   <thead><tr><th scope="col">Nome</th><th scope="col">Login</th><th scope="col">Perfil</th><th scope="col">Ativo</th><th scope="col">Ações</th></tr></thead>
   <tbody>
-  <% usuarios.forEach(function (u) { %>
+  <% usuarios.forEach(function (usr) { %>
   <tr>
-    <td data-rotulo="Nome"><%= u.nome %></td>
-    <td data-rotulo="Login"><%= u.login %></td>
-    <td data-rotulo="Perfil"><%= u.perfil %></td>
-    <td data-rotulo="Ativo"><span class="selo <%= u.ativo ? 'selo-publicada' : 'selo-inativo' %>"><%= u.ativo ? 'sim' : 'não' %></span></td>
+    <td data-rotulo="Nome"><%= usr.nome %></td>
+    <td data-rotulo="Login"><%= usr.login %></td>
+    <td data-rotulo="Perfil"><%= usr.perfil %></td>
+    <td data-rotulo="Ativo"><span class="selo <%= usr.ativo ? 'selo-publicada' : 'selo-inativo' %>"><%= usr.ativo ? 'sim' : 'não' %></span></td>
     <td class="acoes-usuario">
-      <form method="post" action="/usuarios/<%= u.id %>/senha" class="linha-form">
+      <form method="post" action="<%= u('/usuarios/' + usr.id + '/senha') %>" class="linha-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <label class="so-leitor" for="senha-<%= u.id %>">Nova senha provisória de <%= u.nome %></label>
-        <input id="senha-<%= u.id %>" type="password" name="senha" placeholder="Nova senha provisória" minlength="8" autocomplete="new-password" required>
+        <label class="so-leitor" for="senha-<%= usr.id %>">Nova senha provisória de <%= usr.nome %></label>
+        <input id="senha-<%= usr.id %>" type="password" name="senha" placeholder="Nova senha provisória" minlength="8" autocomplete="new-password" required>
         <button class="btn btn-pequeno">Redefinir senha</button>
       </form>
-      <form method="post" action="/usuarios/<%= u.id %>/ativo" class="linha-form">
+      <form method="post" action="<%= u('/usuarios/' + usr.id + '/ativo') %>" class="linha-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="hidden" name="ativo" value="<%= u.ativo ? '0' : '1' %>">
-        <button class="btn btn-pequeno <%= u.ativo ? 'btn-perigo' : 'btn-claro' %>"><%= u.ativo ? 'Desativar' : 'Reativar' %></button>
+        <input type="hidden" name="ativo" value="<%= usr.ativo ? '0' : '1' %>">
+        <button class="btn btn-pequeno <%= usr.ativo ? 'btn-perigo' : 'btn-claro' %>"><%= usr.ativo ? 'Desativar' : 'Reativar' %></button>
       </form>
     </td>
   </tr>
@@ -32,7 +32,7 @@
 </div>
 <section class="cartao cartao-medio espaco-cima">
   <h2>Novo usuário</h2>
-  <form method="post" action="/usuarios" class="formulario">
+  <form method="post" action="<%= u('/usuarios') %>" class="formulario">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <label>Nome <input name="nome" required></label>
     <label>Login <input name="login" autocomplete="off" required></label>

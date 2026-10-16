@@ -3,7 +3,7 @@
   <h1>Trocar senha</h1>
   <p class="suave">Defina uma nova senha para continuar (mínimo de 8 caracteres).</p>
   <% if (erro) { %><p class="aviso aviso-erro" role="alert"><%= erro %></p><% } %>
-  <form method="post" action="/trocar-senha" class="formulario">
+  <form method="post" action="<%= u('/trocar-senha') %>" class="formulario">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <label>Nova senha <input type="password" name="senha" autocomplete="new-password" minlength="8" required autofocus></label>
     <label>Confirmar senha <input type="password" name="confirmacao" autocomplete="new-password" minlength="8" required></label>

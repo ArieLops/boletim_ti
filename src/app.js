@@ -33,6 +33,8 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
   app.disable('x-powered-by');
+  // O mount em `base` é casado pelo roteador do app: sem isto /BOLETIM_TI/... seria atendido (ver o Router abaixo).
+  app.enable('case sensitive routing');
 
   // O pool é do chamador: o store não o encerra no close().
   const store = new MySQLStore({ expiration: maxAge }, pool);
@@ -70,7 +72,9 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, 
 
   // Tudo que exige sessão vive em um único Router, montado em base || '/'. Fora do prefixo nada disso
   // executa (nem a sessão): cai no 404 simples abaixo.
-  const root = express.Router();
+  // caseSensitive: o Express casa rotas sem diferenciar caixa, mas o Path do cookie e wantsJson diferenciam;
+  // sem isto, /BOLETIM_TI/login seria atendido (e a sessão criada) com um cookie que o navegador não devolve.
+  const root = express.Router({ caseSensitive: true });
   root.use((req, res, next) => {
     res.locals.u = url;
     res.locals.basePath = base;

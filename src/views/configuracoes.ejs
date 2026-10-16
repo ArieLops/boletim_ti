@@ -29,7 +29,7 @@
   <h2>Logo</h2>
   <p class="suave">PNG ou JPEG, até 2 MB. Aparece no cabeçalho do comunicado.</p>
   <div class="logo-atual">
-    <img id="logo-atual" src="/api/configuracoes/logo" alt="Logo atual" width="120" height="120">
+    <img id="logo-atual" src="<%= u('/api/configuracoes/logo') %>" alt="Logo atual" width="120" height="120">
     <p id="sem-logo" class="suave" hidden>Nenhum logo enviado; o comunicado usa o logo padrão.</p>
   </div>
   <form id="form-logo" class="formulario" novalidate>

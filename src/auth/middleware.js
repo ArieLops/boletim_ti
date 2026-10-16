@@ -9,7 +9,9 @@ const destino = (req, caminho) => req.app.locals.url(caminho);
 // ou Content-Type é application/json. Os fetch do front-end (Task 7) DEVEM enviar
 // `Accept: application/json`. Navegação normal (páginas, prévia, links de download) mantém redirect/texto.
 function wantsJson(req) {
-  // "/api/" é avaliado no caminho relativo ao prefixo de publicação (BASE_PATH).
+  // "/api/" é avaliado no caminho relativo ao prefixo de publicação (BASE_PATH). Usa originalUrl (sem o
+  // prefixo via relativePath) e não req.baseUrl: no tratador de erros do app, fora do Router, baseUrl é
+  // vazio, e o resultado teria de ser o mesmo dentro e fora do Router.
   const url = relativePath((req.app && req.app.locals.basePath) || '', req.originalUrl || req.url || '');
   return (
     url.startsWith('/api/') ||

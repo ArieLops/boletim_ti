@@ -16,7 +16,7 @@
   function mostrarLogo() {
     img.hidden = false;
     semLogo.hidden = true;
-    img.src = '/api/configuracoes/logo?t=' + Date.now();
+    img.src = Api.url('/api/configuracoes/logo?t=' + Date.now());
   }
   img.addEventListener('error', function () {
     img.hidden = true;
@@ -63,13 +63,13 @@
     if (arquivo.type !== 'image/png' && arquivo.type !== 'image/jpeg') return mostrar(msgLogo, 'O logo deve ser PNG ou JPEG.', true);
     if (arquivo.size > 2 * 1024 * 1024) return mostrar(msgLogo, 'O arquivo excede 2 MB.', true);
     try {
-      const r = await fetch('/api/configuracoes/logo', {
+      const r = await fetch(Api.url('/api/configuracoes/logo'), {
         method: 'PUT',
         credentials: 'same-origin',
         headers: Api.cabecalhos({ 'Content-Type': arquivo.type }),
         body: arquivo,
       });
-      if (r.status === 401) return window.location.assign('/login');
+      if (r.status === 401) return window.location.assign(Api.url('/login'));
       if (r.ok) {
         mostrar(msgLogo, 'Logo atualizado.', false);
         mostrarLogo();

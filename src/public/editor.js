@@ -259,12 +259,12 @@
     inicioPreview = Date.now();
     try {
       // Accept inclui JSON para que sessão expirada devolva 401 (e não a página de login).
-      const r = await fetch('/edicoes/' + ID + '/preview', {
+      const r = await fetch(Api.url('/edicoes/' + ID + '/preview'), {
         credentials: 'same-origin',
         cache: 'no-store',
         headers: { Accept: 'text/html, application/json;q=0.5' },
       });
-      if (r.status === 401) return window.location.assign('/login');
+      if (r.status === 401) return window.location.assign(Api.url('/login'));
       if (!r.ok) throw new Error('preview ' + r.status);
       const ajuste = r.headers.get('X-Ajuste');
       const faltaMm = r.headers.get('X-Falta-Mm');
@@ -348,11 +348,11 @@
         confirmar = true;
       }
       for (let tentativa = 0; tentativa < 2; tentativa++) {
-        const r = await fetch('/edicoes/' + ID + '/download/' + tipo + (confirmar ? '?confirmar=1' : ''), {
+        const r = await fetch(Api.url('/edicoes/' + ID + '/download/' + tipo + (confirmar ? '?confirmar=1' : '')), {
           credentials: 'same-origin',
           headers: Api.cabecalhos(),
         });
-        if (r.status === 401) return window.location.assign('/login');
+        if (r.status === 401) return window.location.assign(Api.url('/login'));
         if (r.ok) {
           const nome = L.nomeArquivo(r.headers.get('Content-Disposition'), 'comunicado-' + raiz.dataset.numero);
           salvarBlob(await r.blob(), nome);

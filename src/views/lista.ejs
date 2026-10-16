@@ -1,7 +1,7 @@
 <%- include('partials/head', { titulo: 'Edições' }) %>
 <div class="cabeca-pagina">
   <h1>Edições</h1>
-  <a class="btn btn-primario" href="/edicoes/nova">Nova edição</a>
+  <a class="btn btn-primario" href="<%= u('/edicoes/nova') %>">Nova edição</a>
 </div>
 <% if (edicoes.length === 0) { %>
 <p class="vazio-lista">Nenhuma edição criada ainda. Use “Nova edição” para começar.</p>
@@ -15,12 +15,12 @@
   <tr>
     <td data-rotulo="Nº"><%= numeroFmt(e.numero) %></td>
     <td data-rotulo="Mês/ano"><%= mesAnoExtenso(e.mes_ano) %></td>
-    <td data-rotulo="Título"><a href="/edicoes/<%= e.id %>"><%= e.titulo %></a></td>
+    <td data-rotulo="Título"><a href="<%= u('/edicoes/' + e.id) %>"><%= e.titulo %></a></td>
     <td data-rotulo="Status"><span class="selo selo-<%= e.status %>"><%= e.status === 'publicada' ? 'Publicada' : 'Rascunho' %></span></td>
     <td data-rotulo="Último editor"><%= e.atualizado_por_nome || '—' %></td>
     <td data-rotulo="Atualizada em"><%= dataHora(e.atualizado_em) %></td>
-    <td class="acoes-linha"><a class="btn btn-pequeno" href="/edicoes/<%= e.id %>"><%= e.status === 'publicada' ? 'Abrir' : 'Editar' %></a>
-      <a class="btn btn-pequeno btn-claro" href="/edicoes/<%= e.id %>/historico">Histórico</a></td>
+    <td class="acoes-linha"><a class="btn btn-pequeno" href="<%= u('/edicoes/' + e.id) %>"><%= e.status === 'publicada' ? 'Abrir' : 'Editar' %></a>
+      <a class="btn btn-pequeno btn-claro" href="<%= u('/edicoes/' + e.id + '/historico') %>">Histórico</a></td>
   </tr>
   <% }) %>
   </tbody>
