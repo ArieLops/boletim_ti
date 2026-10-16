@@ -1,4 +1,4 @@
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(150) NOT NULL,
   login VARCHAR(80) NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE usuarios (
   UNIQUE KEY uq_usuarios_login (login)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE edicoes (
+CREATE TABLE IF NOT EXISTS edicoes (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   numero INT NOT NULL,
   mes_ano VARCHAR(40) NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE edicoes (
   CONSTRAINT fk_edicoes_atualizado_por FOREIGN KEY (atualizado_por) REFERENCES usuarios (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE blocos (
+CREATE TABLE IF NOT EXISTS blocos (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   edicao_id INT UNSIGNED NOT NULL,
   tipo VARCHAR(40) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE blocos (
   CONSTRAINT fk_blocos_edicao FOREIGN KEY (edicao_id) REFERENCES edicoes (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE historico (
+CREATE TABLE IF NOT EXISTS historico (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   edicao_id INT UNSIGNED NOT NULL,
   usuario_id INT UNSIGNED NULL,
@@ -49,7 +49,7 @@ CREATE TABLE historico (
   CONSTRAINT fk_historico_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE arquivos_publicados (
+CREATE TABLE IF NOT EXISTS arquivos_publicados (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   edicao_id INT UNSIGNED NOT NULL,
   tipo ENUM('pdf','png_email','png_whatsapp') NOT NULL,
@@ -61,12 +61,12 @@ CREATE TABLE arquivos_publicados (
   CONSTRAINT fk_arquivos_gerado_por FOREIGN KEY (gerado_por) REFERENCES usuarios (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE configuracoes (
+CREATE TABLE IF NOT EXISTS configuracoes (
   chave VARCHAR(100) NOT NULL PRIMARY KEY,
   valor TEXT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE logo (
+CREATE TABLE IF NOT EXISTS logo (
   id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
   conteudo LONGBLOB NOT NULL,
   mime VARCHAR(100) NOT NULL
