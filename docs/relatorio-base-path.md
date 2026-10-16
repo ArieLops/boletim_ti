@@ -1,10 +1,10 @@
 # Relatório: Comunicado Semanal em `/boletim_ti/` (BASE_PATH)
 
-Branch: `feat/base-path` (a partir de `main` 2f09564) · Último commit: `05fa55d` · Nada foi aplicado em produção.
+Branch: `feat/base-path` (a partir de `main` 2f09564) · Último commit: `034bac6` · Nada foi aplicado em produção.
 
 ## 1. Resultado
 - O sistema funciona **na raiz** (sem `BASE_PATH`) e **em `/boletim_ti`** (`BASE_PATH=/boletim_ti`): login, logout, troca obrigatória de senha, edições, salvamento automático, pré-visualização, publicação, downloads (PDF, PNG A4, PNG WhatsApp), usuários, configurações e logo.
-- Testes: **301 passando, 0 falhando** (eram 201). `npm audit` e `npm audit --omit=dev`: **0 vulnerabilidades** (eram 9, sem `--force`).
+- Testes: **303 passando, 0 falhando** (eram 201). `npm audit` e `npm audit --omit=dev`: **0 vulnerabilidades** (eram 9, sem `--force`).
 - Verificação manual com o Edge sob `/boletim_ti`: as 38 requisições de uma sessão completa ficaram todas dentro do prefixo; um teste rápido no modo raiz também passou.
 
 ## 2. O que mudou
@@ -41,5 +41,5 @@ Total: 51 arquivos (20 novos, 31 alterados) em 9 commits.
 ## 5. Limitações conhecidas
 - Nesta máquina (Windows) **não há Apache nem Docker**: a configuração do Apache, o Dockerfile e os guias foram revisados por leitura, não executados. O `puppeteer-core` 25 com o Chromium do Debian também não foi testado (só com o Edge).
 - Testes de banco rodaram em MariaDB 11.8; a produção usa MariaDB 10.5.
-- Ponto de atenção no rollback (`deploy/ATUALIZACAO.md`): se o passo 3 falhar **antes** do `docker rename` e o nome novo for igual ao do contêiner antigo (padrão `boletim`), o comando de rollback `docker stop/rm "$NOVO"` removeria o contêiner `1.0`. Antes de rodar o rollback, confira a imagem com `docker ps -a --format '{{.Names}} {{.Image}}'`.
+- Rollback (`deploy/ATUALIZACAO.md`): o contêiner novo só é parado e removido se a imagem dele for `boletim-senar:1.1` (commit `034bac6`). Se o passo 3 falhar antes do `docker rename` e o nome novo coincidir com o do `1.0`, o guia não remove nada e orienta os passos manuais.
 - Itens menores adiados estão no ledger interno da revisão (rotas internas sem distinção de maiúsculas, exemplos `docker exec boletim` fixos, entre outros).
