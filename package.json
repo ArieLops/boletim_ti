@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --env-file=.env.test --test \"tests/**/*.test.js\""
+    "test": "node --env-file=.env.test --test \"tests/**/*.test.js\"",
+    "dev": "node --env-file=.env.test scripts/dev-server.js"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
