@@ -1,12 +1,13 @@
-<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><title>Entrar</title></head>
-<body>
-<h1>Comunicado Semanal</h1>
-<% if (erro) { %><p role="alert"><%= erro %></p><% } %>
-<form method="post" action="/login">
-  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <label>Usuário <input name="login" autocomplete="username" required></label>
-  <label>Senha <input type="password" name="senha" autocomplete="current-password" required></label>
-  <button>Entrar</button>
-</form>
-</body></html>
+<%- include('partials/head', { titulo: 'Entrar', corpo: 'pagina-simples' }) %>
+<section class="cartao cartao-estreito">
+  <h1>Entrar</h1>
+  <p class="suave">Acesse o editor do Comunicado Semanal.</p>
+  <% if (erro) { %><p class="aviso aviso-erro" role="alert"><%= erro %></p><% } %>
+  <form method="post" action="/login" class="formulario">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>Usuário <input name="login" autocomplete="username" required autofocus></label>
+    <label>Senha <input type="password" name="senha" autocomplete="current-password" required></label>
+    <button class="btn btn-primario">Entrar</button>
+  </form>
+</section>
+<%- include('partials/foot') %>

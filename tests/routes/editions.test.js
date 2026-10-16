@@ -67,7 +67,8 @@ test('PUT salva e devolve a nova versão; blocos persistem na ordem', async () =
     blocos: [blocoCard(1), blocoCard(2)],
   });
   assert.equal(r.status, 200, JSON.stringify(r.body));
-  assert.deepEqual(r.body, { versao: 2 });
+  assert.equal(r.body.versao, 2);
+  assert.equal(r.body.blocos.length, 2); // ids dos blocos (Task 7: o editor mantém a identidade dos blocos novos)
   const [[e]] = await ctx.pool.query('SELECT titulo, mes_ano, versao FROM edicoes WHERE id = ?', [id]);
   assert.equal(e.titulo, 'Novo título');
   assert.equal(e.mes_ano, '2026-11');

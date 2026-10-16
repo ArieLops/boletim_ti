@@ -1,0 +1,16 @@
+<%- include('partials/head', { titulo: 'Nova edição' }) %>
+<div class="cabeca-pagina"><h1>Nova edição</h1></div>
+<section class="cartao cartao-medio">
+  <form id="form-nova" class="formulario" novalidate>
+    <p>Número sugerido: <strong class="numero-sugerido"><%= sugerido %></strong></p>
+    <label>Mês/ano <input type="month" name="mesAno" value="<%= mesAno %>" pattern="\d{4}-\d{2}" placeholder="AAAA-MM" required></label>
+    <label>Título <input name="titulo" maxlength="255" value="Informações da TI para esta semana" required></label>
+    <label>Subtítulo <span class="suave">(opcional; vazio usa o das configurações)</span> <input name="subtitulo" maxlength="255"></label>
+    <p id="erro-nova" class="aviso aviso-erro" role="alert" hidden></p>
+    <div class="acoes-form">
+      <button type="submit" class="btn btn-primario">Criar e abrir o editor</button>
+      <a class="btn btn-claro" href="/">Cancelar</a>
+    </div>
+  </form>
+</section>
+<%- include('partials/foot', { scripts: ['api.js', 'nova.js'] }) %>

@@ -1,36 +1,44 @@
-<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><title>Usuários</title></head>
-<body>
-<h1>Usuários</h1>
-<% if (erro) { %><p role="alert"><%= erro %></p><% } %>
-<table>
-  <tr><th>Nome</th><th>Login</th><th>Perfil</th><th>Ativo</th><th>Ações</th></tr>
+<%- include('partials/head', { titulo: 'Usuários', ativo: 'usuarios' }) %>
+<div class="cabeca-pagina"><h1>Usuários</h1></div>
+<% if (erro) { %><p class="aviso aviso-erro" role="alert"><%= erro %></p><% } %>
+<div class="tabela-rolavel">
+<table class="tabela">
+  <caption class="so-leitor">Usuários cadastrados</caption>
+  <thead><tr><th scope="col">Nome</th><th scope="col">Login</th><th scope="col">Perfil</th><th scope="col">Ativo</th><th scope="col">Ações</th></tr></thead>
+  <tbody>
   <% usuarios.forEach(function (u) { %>
   <tr>
-    <td><%= u.nome %></td><td><%= u.login %></td><td><%= u.perfil %></td><td><%= u.ativo ? 'sim' : 'não' %></td>
-    <td>
-      <form method="post" action="/usuarios/<%= u.id %>/senha">
+    <td data-rotulo="Nome"><%= u.nome %></td>
+    <td data-rotulo="Login"><%= u.login %></td>
+    <td data-rotulo="Perfil"><%= u.perfil %></td>
+    <td data-rotulo="Ativo"><span class="selo <%= u.ativo ? 'selo-publicada' : 'selo-inativo' %>"><%= u.ativo ? 'sim' : 'não' %></span></td>
+    <td class="acoes-usuario">
+      <form method="post" action="/usuarios/<%= u.id %>/senha" class="linha-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="password" name="senha" placeholder="Nova senha provisória" minlength="8" required>
-        <button>Redefinir senha</button>
+        <label class="so-leitor" for="senha-<%= u.id %>">Nova senha provisória de <%= u.nome %></label>
+        <input id="senha-<%= u.id %>" type="password" name="senha" placeholder="Nova senha provisória" minlength="8" autocomplete="new-password" required>
+        <button class="btn btn-pequeno">Redefinir senha</button>
       </form>
-      <form method="post" action="/usuarios/<%= u.id %>/ativo">
+      <form method="post" action="/usuarios/<%= u.id %>/ativo" class="linha-form">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <input type="hidden" name="ativo" value="<%= u.ativo ? '0' : '1' %>">
-        <button><%= u.ativo ? 'Desativar' : 'Reativar' %></button>
+        <button class="btn btn-pequeno <%= u.ativo ? 'btn-perigo' : 'btn-claro' %>"><%= u.ativo ? 'Desativar' : 'Reativar' %></button>
       </form>
     </td>
   </tr>
   <% }) %>
+  </tbody>
 </table>
-<h2>Novo usuário</h2>
-<form method="post" action="/usuarios">
-  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <label>Nome <input name="nome" required></label>
-  <label>Login <input name="login" required></label>
-  <label>Senha provisória <input type="password" name="senha" minlength="8" required></label>
-  <label>Perfil <select name="perfil"><% perfis.forEach(function (p) { %><option value="<%= p %>"><%= p %></option><% }) %></select></label>
-  <button>Criar</button>
-</form>
-<form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button>Sair</button></form>
-</body></html>
+</div>
+<section class="cartao cartao-medio espaco-cima">
+  <h2>Novo usuário</h2>
+  <form method="post" action="/usuarios" class="formulario">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>Nome <input name="nome" required></label>
+    <label>Login <input name="login" autocomplete="off" required></label>
+    <label>Senha provisória <input type="password" name="senha" minlength="8" autocomplete="new-password" required></label>
+    <label>Perfil <select name="perfil"><% perfis.forEach(function (p) { %><option value="<%= p %>"><%= p %></option><% }) %></select></label>
+    <div class="acoes-form"><button class="btn btn-primario">Criar usuário</button></div>
+  </form>
+</section>
+<%- include('partials/foot') %>

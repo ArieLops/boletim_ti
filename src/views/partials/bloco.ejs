@@ -1,0 +1,20 @@
+<%
+  const rotuloTipo = (tiposBloco.find(function (t) { return t.tipo === bloco.tipo; }) || {}).rotulo || bloco.tipo;
+  const dados = bloco.dados || {};
+%><li class="bloco-item" <%- bloco.id ? 'data-id="' + Number(bloco.id) + '" ' : '' %>data-tipo="<%= bloco.tipo %>">
+  <div class="bloco-cabeca">
+    <h3 class="bloco-titulo"><span class="bloco-pos"></span> <%= rotuloTipo %></h3>
+    <div class="bloco-botoes">
+      <button type="button" class="btn btn-icone" data-acao="subir" aria-label="Mover bloco para cima"<%= travado ? ' disabled' : '' %>>↑</button>
+      <button type="button" class="btn btn-icone" data-acao="descer" aria-label="Mover bloco para baixo"<%= travado ? ' disabled' : '' %>>↓</button>
+      <button type="button" class="btn btn-icone btn-perigo" data-acao="remover" aria-label="Remover bloco"<%= travado ? ' disabled' : '' %>>✕</button>
+    </div>
+  </div>
+  <% camposBloco[bloco.tipo].forEach(function (c) { %>
+  <label><%= c[1] %>
+    <% if (c[2] === 'area') { %><textarea name="<%= c[0] %>" rows="4" maxlength="2000"<%= travado ? ' disabled' : '' %>><%= dados[c[0]] || '' %></textarea>
+    <% } else { %><input name="<%= c[0] %>" maxlength="2000" value="<%= dados[c[0]] || '' %>"<%= travado ? ' disabled' : '' %>>
+    <% } %>
+  </label>
+  <% }) %>
+</li>

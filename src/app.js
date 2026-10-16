@@ -3,19 +3,17 @@ const express = require('express');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const { makeUsersRepo } = require('./repos/users');
-const { loadUser, requireLogin, csrf } = require('./auth/middleware');
+const { loadUser, csrf } = require('./auth/middleware');
 const { authRoutes } = require('./routes/auth');
 const { usersRoutes } = require('./routes/users');
 const { editionsRoutes } = require('./routes/editions');
 const { exportsRoutes } = require('./routes/exports');
 const { settingsRoutes } = require('./routes/settings');
+const { screensRoutes } = require('./routes/screens');
 const { makeEditionsRepo } = require('./repos/editions');
 const { makeHistoryRepo } = require('./repos/history');
 const { makeFilesRepo } = require('./repos/files');
 const { makeSettingsRepo } = require('./repos/settings');
-
-const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ESC[c]);
 
 // Opções ausentes caem em `config` (que valida o .env); testes passam tudo explicitamente.
 function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours } = {}) {
@@ -43,6 +41,8 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
   app.locals.settings = makeSettingsRepo(pool);
   app.locals.close = () => store.close();
 
+  // Estáticos (css/js das telas) antes da sessão: não criam sessão nem exigem login.
+  app.use(express.static(path.join(__dirname, 'public')));
   app.use(express.urlencoded({ extended: false }));
   app.use(express.json({ limit: '1mb' }));
   app.use(
@@ -63,17 +63,7 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
   app.use(editionsRoutes());
   app.use(exportsRoutes());
   app.use(settingsRoutes());
-
-  // Provisória: a Task 7 substitui pela tela inicial.
-  app.get('/', requireLogin, (req, res) => {
-    res.type('html').send(
-      '<!doctype html><meta charset="utf-8"><title>Comunicado Semanal</title>' +
-        `<p>Olá, ${esc(req.user.nome)}.</p>` +
-        '<form method="post" action="/logout">' +
-        `<input type="hidden" name="_csrf" value="${esc(res.locals.csrfToken)}">` +
-        '<button>Sair</button></form>'
-    );
-  });
+  app.use(screensRoutes());
 
   // Tratador geral: corpo malformado/grande vira 400/413 em JSON; o resto 500 sem expor detalhes.
   app.use((err, req, res, next) => {

@@ -79,7 +79,7 @@ test('editor em /api/configuracoes: 403 JSON; navegação /usuarios mantém text
   assert.deepEqual(r.body, { erro: 'acesso restrito a administradores' });
   const u = await edu.get('/usuarios');
   assert.equal(u.status, 403);
-  assert.equal(u.text, 'Acesso negado');
+  assert.match(u.text, /Acesso negado/);
 });
 
 test('falha de CSRF com JSON: 403 JSON; formulário mantém texto', async () => {

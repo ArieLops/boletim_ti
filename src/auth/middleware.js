@@ -44,7 +44,7 @@ function requireLogin(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.perfil !== 'administrador') {
-    return wantsJson(req) ? res.status(403).json({ erro: 'acesso restrito a administradores' }) : res.status(403).send('Acesso negado');
+    return wantsJson(req) ? res.status(403).json({ erro: 'acesso restrito a administradores' }) : res.status(403).render('erro', { titulo: 'Acesso negado', mensagem: 'Acesso negado: esta página é restrita a administradores.' });
   }
   next();
 }

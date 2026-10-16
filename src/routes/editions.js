@@ -87,7 +87,13 @@ function editionsRoutes() {
     if (edicao.status === 'publicada') return erro(res, 409, 'edição publicada; reabra para editar');
     try {
       const versao = await req.app.locals.editions.saveEdition(edicao.id, v.ok, req.user.id);
-      res.json({ versao });
+      // Devolve também os ids dos blocos (na ordem enviada) para o editor manter a identidade dos novos.
+      const atual = await req.app.locals.editions.getEdition(edicao.id);
+      const resposta = { versao };
+      if (atual && atual.edicao.versao === versao && atual.blocos.length === v.ok.blocos.length) {
+        resposta.blocos = atual.blocos.map((b) => ({ id: b.id }));
+      }
+      res.json(resposta);
     } catch (e) {
       if (e instanceof ConflictError) return erro(res, 409, `esta edição foi alterada por ${e.por}, recarregue`);
       // Publicada entre a checagem acima e o salvamento (corrida).

@@ -1,0 +1,41 @@
+<%- include('partials/head', { titulo: 'Configurações' }) %>
+<div class="cabeca-pagina"><h1>Configurações</h1></div>
+<form id="form-config" class="formulario cartao cartao-medio" novalidate>
+  <h2>Comunicado</h2>
+  <label>E-mail da TI (rodapé) <input type="email" name="emailTi" value="<%= cfg.emailTi %>" maxlength="200" required></label>
+  <label>Rodapé (texto à esquerda) <input name="rodape" value="<%= cfg.rodape %>" maxlength="200" required></label>
+  <label>Subtítulo padrão <textarea name="subtitulo" rows="2" maxlength="300"><%= cfg.subtitulo %></textarea></label>
+  <label>Piso de redução automática (%) <span class="suave">entre 50 e 100; o conteúdo é reduzido até esse limite antes de “passar do limite”</span>
+    <input type="number" name="pisoReducao" min="50" max="100" step="5" value="<%= Math.round(cfg.pisoReducao * 100) %>" required></label>
+  <fieldset class="cores">
+    <legend>Cores</legend>
+    <% cores.forEach(function (c) { %>
+    <label class="cor">
+      <span><%= c.rotulo %></span>
+      <% if (/^#[0-9a-fA-F]{6}$/.test(c.valor)) { %>
+      <input type="color" name="<%= c.nome %>" value="<%= c.valor %>" data-padrao="<%= c.padrao %>">
+      <% } else { %>
+      <input type="text" name="<%= c.nome %>" value="<%= c.valor %>" data-padrao="<%= c.padrao %>" maxlength="60">
+      <% } %>
+    </label>
+    <% }) %>
+    <button type="button" id="cores-padrao" class="btn btn-claro btn-pequeno">Restaurar cores padrão</button>
+  </fieldset>
+  <p id="msg-config" class="aviso" role="status" hidden></p>
+  <div class="acoes-form"><button type="submit" class="btn btn-primario">Salvar configurações</button></div>
+</form>
+
+<section class="cartao cartao-medio espaco-cima">
+  <h2>Logo</h2>
+  <p class="suave">PNG ou JPEG, até 2 MB. Aparece no cabeçalho do comunicado.</p>
+  <div class="logo-atual">
+    <img id="logo-atual" src="/api/configuracoes/logo" alt="Logo atual" width="120" height="120">
+    <p id="sem-logo" class="suave" hidden>Nenhum logo enviado; o comunicado usa o logo padrão.</p>
+  </div>
+  <form id="form-logo" class="formulario" novalidate>
+    <label>Novo logo <input type="file" name="logo" accept="image/png,image/jpeg" required></label>
+    <p id="msg-logo" class="aviso" role="status" hidden></p>
+    <div class="acoes-form"><button type="submit" class="btn btn-primario">Enviar logo</button></div>
+  </form>
+</section>
+<%- include('partials/foot', { scripts: ['api.js', 'configuracoes.js'] }) %>

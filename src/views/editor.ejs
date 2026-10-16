@@ -1,0 +1,71 @@
+<%- include('partials/head', { titulo: 'Edição ' + numeroFmt(edicao.numero), larga: true, corpo: 'pagina-editor' }) %>
+<div id="editor" class="editor" data-edicao-id="<%= edicao.id %>" data-versao="<%= edicao.versao %>" data-numero="<%= numeroFmt(edicao.numero) %>"<%- travado ? ' data-publicada="1"' : '' %>>
+  <div class="barra-editor">
+    <div class="barra-titulo">
+      <h1>Edição <%= numeroFmt(edicao.numero) %></h1>
+      <span id="selo-status" class="selo <%= travado ? 'selo-publicada' : 'selo-rascunho' %>"><%= travado ? 'Publicada' : 'Rascunho' %></span>
+      <span id="estado-salvo" class="estado-salvo" role="status" aria-live="polite"<%- travado ? ' hidden' : '' %>>Salvo</span>
+    </div>
+    <div class="barra-acoes" role="group" aria-label="Ações da edição">
+      <button type="button" class="btn btn-claro" data-baixar="pdf">Baixar PDF</button>
+      <button type="button" class="btn btn-claro" data-baixar="png-email">Baixar PNG (e-mail)</button>
+      <button type="button" class="btn btn-claro" data-baixar="png-whatsapp">Baixar imagem (WhatsApp)</button>
+      <button type="button" class="btn btn-primario" id="btn-publicar"<%- travado ? ' hidden' : '' %>>Publicar</button>
+      <button type="button" class="btn btn-aviso" id="btn-reabrir"<%- travado ? '' : ' hidden' %>>Reabrir</button>
+      <a class="btn btn-claro" href="/edicoes/<%= edicao.id %>/historico" id="link-historico">Histórico</a>
+    </div>
+  </div>
+
+  <div id="avisos" class="avisos" aria-live="polite">
+    <div id="aviso-conflito" class="aviso aviso-erro" role="alert" hidden>
+      <span id="texto-conflito"></span>
+      <button type="button" class="btn btn-pequeno" id="btn-recarregar">Recarregar</button>
+    </div>
+    <p id="aviso-geral" class="aviso" role="alert" hidden></p>
+  </div>
+
+  <div class="colunas">
+    <section class="coluna-form" aria-label="Conteúdo da edição">
+      <form id="form-edicao" class="cartao formulario" onsubmit="return false">
+        <h2>Dados da edição</h2>
+        <div class="grade-2">
+          <label>Número <input name="numero" value="<%= numeroFmt(edicao.numero) %>" readonly<%= travado ? ' disabled' : '' %>></label>
+          <label>Mês/ano <input type="month" name="mesAno" value="<%= edicao.mes_ano %>" pattern="\d{4}-\d{2}" placeholder="AAAA-MM" required<%= travado ? ' disabled' : '' %>></label>
+        </div>
+        <label>Título <input name="titulo" value="<%= edicao.titulo %>" maxlength="255" required<%= travado ? ' disabled' : '' %>></label>
+        <label>Subtítulo <span class="suave">(vazio usa o das configurações)</span> <input name="subtitulo" value="<%= edicao.subtitulo || '' %>" maxlength="255"<%= travado ? ' disabled' : '' %>></label>
+      </form>
+
+      <div class="cabeca-blocos"><h2>Blocos</h2></div>
+      <p id="erro-blocos" class="aviso aviso-erro" role="alert" hidden></p>
+      <ol id="lista-blocos" class="lista-blocos">
+        <% blocos.forEach(function (b) { %><%- include('partials/bloco', { bloco: b, travado: travado }) %><% }) %>
+      </ol>
+      <p id="blocos-vazios" class="vazio-lista" <%- blocos.length ? 'hidden' : '' %>>Nenhum bloco ainda. Adicione um abaixo.</p>
+
+      <% if (!travado) { %>
+      <div class="adicionar-bloco" role="group" aria-label="Adicionar bloco">
+        <span>Adicionar bloco:</span>
+        <% tiposBloco.forEach(function (t) { %>
+        <button type="button" class="btn btn-claro btn-pequeno" data-adicionar="<%= t.tipo %>">+ <%= t.rotulo %></button>
+        <% }) %>
+      </div>
+      <% tiposBloco.forEach(function (t) { %>
+      <template id="tpl-<%= t.tipo %>"><%- include('partials/bloco', { bloco: { tipo: t.tipo, dados: {} }, travado: false }) %></template>
+      <% }) %>
+      <% } %>
+    </section>
+
+    <section class="coluna-preview" aria-label="Pré-visualização">
+      <div class="preview-cabeca">
+        <h2>Pré-visualização A4</h2>
+        <span id="indicador" class="indicador indicador-indisponivel" role="status" aria-live="polite">carregando…</span>
+      </div>
+      <div id="moldura" class="moldura">
+        <iframe id="preview" title="Pré-visualização do comunicado em A4" sandbox></iframe>
+      </div>
+      <p class="suave nota-preview">A pré-visualização mostra a versão salva.</p>
+    </section>
+  </div>
+</div>
+<%- include('partials/foot', { scripts: ['api.js', 'editor-lib.js', 'editor.js'] }) %>

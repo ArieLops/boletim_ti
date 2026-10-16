@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="<%= locals.csrfToken || '' %>">
+<title><%= titulo %> · Comunicado Semanal SENAR-RS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body class="<%= locals.corpo || '' %>">
+<a class="pular" href="#principal">Pular para o conteúdo</a>
+<header class="topo">
+  <div class="topo-marca">
+    <span class="barras" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+    <a class="marca-texto" href="/"><strong>SENAR</strong> <span>RS</span> <em>Comunicado Semanal</em></a>
+  </div>
+  <% if (locals.user) { %>
+  <nav class="topo-nav" aria-label="Principal">
+    <a href="/"<%- locals.ativo === 'edicoes' ? ' aria-current="page"' : '' %>>Edições</a>
+    <% if (user.perfil === 'administrador') { %>
+    <a href="/usuarios"<%- locals.ativo === 'usuarios' ? ' aria-current="page"' : '' %>>Usuários</a>
+    <a href="/configuracoes"<%- locals.ativo === 'configuracoes' ? ' aria-current="page"' : '' %>>Configurações</a>
+    <% } %>
+  </nav>
+  <div class="topo-usuario">
+    <span class="nome-usuario"><%= user.nome %></span>
+    <form method="post" action="/logout">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-sair">Sair</button>
+    </form>
+  </div>
+  <% } %>
+</header>
+<main id="principal" class="principal<%= locals.larga ? ' principal-larga' : '' %>">

@@ -1,0 +1,19 @@
+<%- include('partials/head', { titulo: 'Histórico da edição ' + numeroFmt(edicao.numero) }) %>
+<div class="cabeca-pagina">
+  <h1>Histórico · edição <%= numeroFmt(edicao.numero) %></h1>
+  <a class="btn btn-claro" href="/edicoes/<%= edicao.id %>">Voltar ao editor</a>
+</div>
+<p class="suave"><%= edicao.titulo %> · <%= mesAnoExtenso(edicao.mes_ano) %></p>
+<% if (eventos.length === 0) { %>
+<p class="vazio-lista">Nenhum evento registrado.</p>
+<% } else { %>
+<ol class="linha-do-tempo">
+  <% eventos.forEach(function (e) { %>
+  <li>
+    <time><%= e.quando %></time>
+    <span class="evento"><strong><%= e.usuario_nome || 'Usuário removido' %></strong> <%= e.frase %></span>
+  </li>
+  <% }) %>
+</ol>
+<% } %>
+<%- include('partials/foot') %>
