@@ -21,7 +21,7 @@ test('configurações: editor leva 403 em tudo; anônimo é redirecionado', asyn
   assert.equal((await edu.post('/api/configuracoes', { rodape: 'x' })).status, 403);
   assert.equal((await enviarLogo(edu, png, 'image/png')).status, 403);
   assert.equal((await edu.get('/api/configuracoes/logo')).status, 403);
-  assert.equal((await request(ctx.app).get('/api/configuracoes')).status, 302);
+  assert.equal((await request(ctx.app).get('/api/configuracoes')).status, 401);
 });
 
 test('GET devolve os padrões; POST atualiza e persiste', async () => {

@@ -254,3 +254,51 @@ test('publicada sem arquivos no banco (inconsistência) gera na hora em vez de f
   assert.equal(r.status, 200);
   assert.equal(ex.calls.pdf, 1);
 });
+
+test('publicar: edição alterada durante a geração -> 409 e nada é gravado (guarda de versão)', async () => {
+  const id = await nova();
+  const pdfOriginal = ex.pdf;
+  ex.pdf = async (...args) => {
+    const r = await edu.put(`/edicoes/${id}`, { versao: 2, blocos: [blocoCard(9)] }); // edição concorrente
+    assert.equal(r.status, 200);
+    return pdfOriginal(...args);
+  };
+  try {
+    const r = await edu.post(`/edicoes/${id}/publicar`);
+    assert.equal(r.status, 409);
+    assert.equal(r.body.erro, 'a edição foi alterada durante a publicação; tente novamente');
+  } finally {
+    ex.pdf = pdfOriginal;
+  }
+  assert.equal(await statusDe(id), 'rascunho');
+  assert.equal(await nArquivos(id), 0);
+  assert.ok(!(await acoes(id)).includes('publicada'));
+});
+
+test('publicar: falha DEPOIS de saveFiles dentro da transação desfaz arquivos e status juntos', async () => {
+  const id = await nova();
+  const original = ctx.pool.getConnection;
+  // Faz o INSERT do histórico (último passo antes do commit) falhar nas conexões obtidas durante o teste.
+  ctx.pool.getConnection = async (...a) => {
+    const c = await original.apply(ctx.pool, a);
+    const q = c.query;
+    const rel = c.release;
+    c.query = (sql, ...r) => (/INSERT INTO historico/.test(String(sql)) ? Promise.reject(new Error('falha simulada no histórico')) : q.call(c, sql, ...r));
+    c.release = (...r) => { c.query = q; c.release = rel; return rel.apply(c, r); };
+    return c;
+  };
+  const logs = console.error;
+  console.error = () => {};
+  try {
+    const r = await edu.post(`/edicoes/${id}/publicar`);
+    assert.equal(r.status, 500);
+  } finally {
+    console.error = logs;
+    ctx.pool.getConnection = original;
+  }
+  assert.equal(await nArquivos(id), 0, 'arquivos devem ter sido desfeitos');
+  assert.equal(await statusDe(id), 'rascunho');
+  // sem a falha, a mesma edição publica normalmente
+  assert.equal((await edu.post(`/edicoes/${id}/publicar`)).status, 200);
+  assert.equal(await nArquivos(id), 3);
+});
