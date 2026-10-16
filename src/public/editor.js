@@ -138,6 +138,35 @@
   });
   document.querySelectorAll('[data-adicionar]').forEach((b) => b.addEventListener('click', () => !travado && adicionar(b.dataset.adicionar)));
 
+  // ---------- tipo do bloco ----------
+  // Troca o tipo mantendo o data-id (o servidor atualiza a mesma linha). A regra de quais campos
+  // sobram/são descartados/faltam é L.trocarTipo (pura, testada em tests/public/editor-tipos.test.js).
+  function trocarTipoBloco(sel) {
+    const li = sel.closest('.bloco-item');
+    const antigo = li.dataset.tipo;
+    const novo = sel.value;
+    const tpl = $('tpl-' + novo);
+    if (travado || novo === antigo) return;
+    if (!tpl) { sel.value = antigo; return; }
+    const r = L.trocarTipo(lerBloco(li).dados, novo);
+    const rotulo = sel.options[sel.selectedIndex].textContent.trim();
+    if (r.descartados.length && !window.confirm('Trocar para ' + rotulo + ' vai descartar: ' + L.listaCampos(r.descartados) + '. Continuar?')) {
+      sel.value = antigo;
+      return;
+    }
+    const nova = tpl.content.firstElementChild.cloneNode(true);
+    if (li.dataset.id) nova.dataset.id = li.dataset.id;
+    nova.querySelectorAll('input[name], textarea[name]').forEach((el) => { el.value = r.dados[el.name] || ''; });
+    li.replaceWith(nova);
+    atualizarPosicoes();
+    nova.querySelector('[data-tipo-select]').focus();
+    anunciar('Bloco ' + (itens().indexOf(nova) + 1) + ' agora é do tipo ' + rotulo);
+    marcarSujo();
+  }
+  // O select dispara "input" além de "change"; só o "change" (já confirmado) deve marcar a edição como alterada.
+  lista.addEventListener('input', (ev) => { if (ev.target.matches('[data-tipo-select]')) ev.stopPropagation(); }, true);
+  lista.addEventListener('change', (ev) => { if (ev.target.matches('[data-tipo-select]')) trocarTipoBloco(ev.target); });
+
   // ---------- salvamento automático ----------
   function marcarSujo() {
     if (travado) return;
@@ -382,7 +411,7 @@
     clearTimeout(timerSalvar);
     clearTimeout(timerRetentar);
     form.querySelectorAll('input, textarea').forEach((el) => { el.disabled = true; });
-    lista.querySelectorAll('input, textarea, button').forEach((el) => { el.disabled = true; });
+    lista.querySelectorAll('input, textarea, button, select').forEach((el) => { el.disabled = true; });
     document.querySelectorAll('[data-adicionar]').forEach((el) => { el.disabled = true; });
     $('btn-publicar').hidden = true;
     $('btn-reabrir').hidden = false;

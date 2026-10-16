@@ -123,5 +123,24 @@
     return m ? m[1] : padrao;
   }
 
-  return { CAMPOS, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
+
+  const ROTULOS_CAMPO = { etiqueta: 'Etiqueta', titulo: 'Título', texto: 'Texto', chamada: 'Linha de chamada' };
+  const listaCampos = (campos) => campos.map((c) => ROTULOS_CAMPO[c] || c).join(', ');
+
+  // Troca o tipo de um bloco preservando os campos de mesmo nome. Tipo novo desconhecido lança RangeError.
+  // descartados: campos presentes em `dados`, ausentes no tipo novo e com valor não vazio (após trim);
+  // faltando: campos do tipo novo que ficam vazios (após trim).
+  function trocarTipo(dados, tipoNovo) {
+    if (!Object.prototype.hasOwnProperty.call(CAMPOS, tipoNovo)) throw new RangeError('Tipo de bloco desconhecido: ' + tipoNovo);
+    const origem = dados || {};
+    const novos = CAMPOS[tipoNovo];
+    const texto = (v) => (v == null ? '' : String(v));
+    const out = {};
+    novos.forEach((c) => { out[c] = texto(origem[c]); });
+    const descartados = Object.keys(origem).filter((c) => !novos.includes(c) && texto(origem[c]).trim() !== '');
+    const faltando = novos.filter((c) => out[c].trim() === '');
+    return { dados: out, descartados, faltando };
+  }
+
+  return { CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
 });

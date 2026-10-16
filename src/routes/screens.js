@@ -5,10 +5,10 @@ const { CORES_PADRAO } = require('../render/styles');
 const { mesAnoExtenso, dataHora, numeroFmt, textoEvento } = require('./format');
 
 const TIPOS_BLOCO = [
-  { tipo: 'destaque', rotulo: 'Destaque' },
-  { tipo: 'card', rotulo: 'Card' },
-  { tipo: 'dica', rotulo: 'Dica' },
-  { tipo: 'texto', rotulo: 'Texto livre' },
+  { tipo: 'destaque', rotulo: 'Destaque', descricao: 'Cartão grande com etiqueta, título, texto e linha de chamada. Para o assunto principal da semana.' },
+  { tipo: 'card', rotulo: 'Card', descricao: 'Cartão menor com etiqueta, título e texto. Cards seguidos ficam lado a lado.' },
+  { tipo: 'dica', rotulo: 'Dica', descricao: 'Faixa verde com ponto amarelo, título e texto. Para dicas de segurança e avisos curtos.' },
+  { tipo: 'texto', rotulo: 'Texto livre', descricao: 'Título e parágrafo simples, sem caixa nem cor. Para texto corrido.' },
 ];
 // [campo, rótulo, controle]
 const CAMPOS_BLOCO = {

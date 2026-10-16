@@ -4,6 +4,9 @@
 %><li class="bloco-item" <%- bloco.id ? 'data-id="' + Number(bloco.id) + '" ' : '' %>data-tipo="<%= bloco.tipo %>">
   <div class="bloco-cabeca">
     <h3 class="bloco-titulo"><span class="bloco-pos"></span> <%= rotuloTipo %></h3>
+    <select class="bloco-tipo" data-tipo-select aria-label="Tipo do bloco"<%= travado ? ' disabled' : '' %>>
+      <% tiposBloco.forEach(function (t) { %><option value="<%= t.tipo %>"<%= t.tipo === bloco.tipo ? ' selected' : '' %>><%= t.rotulo %></option><% }) %>
+    </select>
     <div class="bloco-botoes">
       <button type="button" class="btn btn-icone" data-acao="subir" aria-label="Mover bloco para cima"<%= travado ? ' disabled' : '' %>>↑</button>
       <button type="button" class="btn btn-icone" data-acao="descer" aria-label="Mover bloco para baixo"<%= travado ? ' disabled' : '' %>>↓</button>
