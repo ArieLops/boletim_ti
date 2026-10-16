@@ -24,3 +24,26 @@ npm run dev    # http://localhost:3100, banco descartável boletim_dev (veja scr
 `npm start` executa `src/server.js` (lê variáveis de ambiente; modelos em `.env.example` e `deploy/boletim.env.example`). `GET /saude` responde `{"ok":true}` quando o banco está acessível.
 
 Instalação passo a passo no Ubuntu (Node, Chromium, banco, systemd, nginx, backup): **[deploy/INSTALL.md](deploy/INSTALL.md)**. Para validar o Chromium no servidor: `node --env-file=/etc/boletim/boletim.env scripts/smoke-export.js /tmp/smoke`.
+
+## Rodar em subdiretório (BASE_PATH)
+
+O aplicativo pode ser publicado sob um prefixo (por exemplo `http://192.168.10.161/boletim_ti/`) atrás de um proxy reverso que **mantém** o prefixo ao repassar. Com `BASE_PATH=/boletim_ti`, todas as rotas, estáticos, redirecionamentos e o cookie de sessão (`boletim.sid`, `Path=/boletim_ti`) ficam sob o prefixo; fora dele o app responde 404, exceto `GET /saude`, que existe na raiz e sob o prefixo.
+
+Guias de operação (escritos para Apache2 + Docker; **não foram executados numa máquina com Docker/Apache**, veja os avisos em cada um):
+
+- [deploy/apache/README.md](deploy/apache/README.md): proxy, restrição por rede, exceção na regra HTTP→HTTPS, validação e reversão (snippet em `deploy/apache/boletim_ti.conf`).
+- [deploy/docker/README.md](deploy/docker/README.md): `Dockerfile`, build, `docker run`, env-file e teste de fumaça da exportação.
+- [deploy/ATUALIZACAO.md](deploy/ATUALIZACAO.md): atualização em produção e rollback.
+
+Variáveis relacionadas:
+
+| Variável | Efeito |
+|----------|--------|
+| `BASE_PATH` | Prefixo de publicação (`/segmento[/segmento]`; ausente/vazio = raiz). Valor inválido impede a subida |
+| `COOKIE_SECURE` | Cookie de sessão `secure` (padrão `true`). Use `false` apenas enquanto o acesso for HTTP |
+| `HOST` | Endereço de escuta (padrão `127.0.0.1`). No contêiner é `0.0.0.0`, com a porta publicada só em `127.0.0.1` |
+| `PORT` | Porta de escuta (padrão `3000`) |
+| `CHROMIUM_PATH` | Caminho do Chromium/Chrome/Edge para exportar (no contêiner: `/usr/bin/chromium`) |
+| `CHROMIUM_NO_SANDBOX` | `1` inicia o Chromium com `--no-sandbox` (último recurso: contêiner/AppArmor) |
+
+No Windows com Git Bash, caminhos que começam com `/` em argumentos (por exemplo `BASE_PATH=/boletim_ti` na linha de comando) são convertidos para caminhos do Windows. Prefixe o comando com `MSYS_NO_PATHCONV=1` ou defina a variável no `.env`.

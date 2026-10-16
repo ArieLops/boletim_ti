@@ -10,3 +10,8 @@ tests/ export-ignore
 scripts/dev-server.js export-ignore
 scripts/preview-demo.js export-ignore
 .gitattributes export-ignore
+
+# Implantacao: LF obrigatorio (Dockerfile/.dockerignore e guias vao para Linux).
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+deploy/** text eol=lf

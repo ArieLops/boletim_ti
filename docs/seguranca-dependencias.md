@@ -22,10 +22,12 @@ Sugestões do `npm audit fix --force`: `puppeteer-core@25.14.0` (major, aceita) 
 | 8 | `mysql2` <= 3.23.0 (cópia aninhada 3.10.2) | alta | GHSA-3f6p-5ww8-9rcr (downgrade para `mysql_clear_password` vaza credenciais), GHSA-rgwj-5xj2-c3m3 (decompression bomb no protocolo comprimido) | express-mysql-session > mysql2 | Não na prática: o código entrega o pool do `mysql2` direto (3.24.6, já corrigido) ao `MySQLStore`, então a cópia aninhada não era carregada. Corrigido mesmo assim para ter uma só versão |
 | 9 | `express-mysql-session` >= 3.0.0 | moderada | herdado do mysql2 aninhado | direta | Idem item 8 |
 
+Nota: as linhas marcadas como "herdado" não têm advisory próprio; o `npm audit` as reporta como herdadas da dependência direta ou transitiva que traz o problema (o advisory real está na linha da dependência afetada).
+
 ## 3. Correção aplicada
 
 - `puppeteer-core` `^24.43.1` -> `^25.14.0`. A nova versão não traz mais `extract-zip`, `proxy-agent`, `pac-proxy-agent`, `get-uri` nem `basic-ftp` (saíram da árvore, não só foram atualizados). Nenhuma alteração em `src/export/exporter.js` foi necessária.
-- `engines.node`: `>=20` -> `>=22.12.0` (exigência do `puppeteer-core` 25 e de `@puppeteer/browsers`). A produção usa Node 22 (imagem `node:22`). Conferido no lockfile: nenhuma dependência exige mais que 22.12 (`chromium-bidi` aceita `>=20.19 <22 || >=22.12`; `yargs` `^20.19 || ^22.12 || >=23`).
+- `engines.node`: `>=20` -> `>=22.12.0` (exigência do `puppeteer-core` 25 e de `@puppeteer/browsers`). A produção usa Node 22 (Dockerfile `node:22-bookworm-slim` incluído neste repositório). Conferido no lockfile: nenhuma dependência exige mais que 22.12 (`chromium-bidi` aceita `>=20.19 <22 || >=22.12`; `yargs` `^20.19 || ^22.12 || >=23`).
 - Override em `package.json`:
 
   ```json
@@ -52,7 +54,8 @@ Regressão: `npm test` com 283 testes passando (inclui exportador real e store d
 
 - Remover o `overrides` quando o `express-mysql-session` publicar versão cuja dependência `mysql2` já seja >= 3.24 (confirme com `npm view express-mysql-session dependencies`). Depois, `npm install` e `npm ls mysql2` devem continuar mostrando uma só versão.
 - Rodar `npm audit` periodicamente (por exemplo a cada deploy) e atualizar dentro dos intervalos semver.
-- Manter o Node de produção em 22.12 ou superior (a imagem `node:22` já satisfaz). Máquinas de desenvolvimento com Node < 22.12 passam a receber aviso de engines.
+- Manter o Node de produção em 22.12 ou superior (o Dockerfile `node:22-bookworm-slim` incluído neste repositório já satisfaz). Máquinas de desenvolvimento com Node < 22.12 passam a receber aviso de engines.
+- Chromium do contêiner: o `chromium` do Debian bookworm (imagem `node:22-bookworm-slim`) é mais antigo que o Chrome-alvo do `puppeteer-core` 25. O protocolo CDP costuma ser tolerante a essa diferença (risco baixo), mas isso não foi testado nesta máquina. **Antes da troca de tráfego**, rode `scripts/smoke-export.js` dentro do contêiner reconstruído, com `CHROMIUM_PATH=/usr/bin/chromium` (já definido na imagem) e `CHROMIUM_NO_SANDBOX=1` se estiver rodando como o usuário `node`: `docker exec boletim node scripts/smoke-export.js /tmp/smoke` (ver `deploy/docker/README.md`).
 - Testar o Chromium do servidor com `scripts/smoke-export.js` após atualizações do `puppeteer-core`, pois ele fala com o navegador por protocolo versionado.
 
 ## 6. Reproduzir

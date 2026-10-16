@@ -1,0 +1,17 @@
+# Contexto de build enxuto e sem segredos. A imagem precisa de: package.json, package-lock.json,
+# src/, scripts/create-admin.js e scripts/smoke-export.js. NAO exclua esses.
+node_modules
+npm-debug.log*
+.env*
+.git
+.gitattributes
+.gitignore
+.tools
+.superpowers
+.claude
+tests
+docs
+deploy
+Dockerfile
+.dockerignore
+README.md
