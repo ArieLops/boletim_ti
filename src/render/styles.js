@@ -108,4 +108,4 @@ body{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--texto);-webki
 `;
 }
 
-module.exports = { buildCss, CORES_PADRAO };
+module.exports = { buildCss, CORES_PADRAO, VAR_NOME, VAR_VALOR };

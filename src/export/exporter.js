@@ -172,12 +172,15 @@ function createExporter({ renderHtml, piso = 0.75, hooks = {}, timeoutMs = TIMEO
     return px / PX_POR_MM;
   }
 
-  const ajustar = (page) => pickScale((sc) => medirMm(page, sc), { piso });
+  // `opts.piso` (por chamada) sobrepõe o piso padrão do exportador; valor inválido é ignorado.
+  const pisoDe = (opts) => (opts && Number.isFinite(opts.piso) && opts.piso > 0 && opts.piso <= 1 ? opts.piso : piso);
+
+  const ajustar = (page, pisoUsado = piso) => pickScale((sc) => medirMm(page, sc), { piso: pisoUsado });
 
   // Pagina A4 carregada e ja na escala escolhida.
-  async function paginaA4(page, input) {
+  async function paginaA4(page, input, pisoUsado) {
     await abrirA4(page, input);
-    const fit = await ajustar(page);
+    const fit = await ajustar(page, pisoUsado);
     await aplicarEscala(page, fit.scale);
     return fit;
   }
@@ -190,19 +193,19 @@ function createExporter({ renderHtml, piso = 0.75, hooks = {}, timeoutMs = TIMEO
   }
 
   return {
-    fit: (input) => enfileirar(async (page) => {
+    fit: (input, opts) => enfileirar(async (page) => {
       await abrirA4(page, input);
-      return ajustar(page);
+      return ajustar(page, pisoDe(opts));
     }),
 
-    pdf: (input) => enfileirar(async (page) => {
-      await paginaA4(page, input);
+    pdf: (input, opts) => enfileirar(async (page) => {
+      await paginaA4(page, input, pisoDe(opts));
       return Buffer.from(await page.pdf({ printBackground: true, preferCSSPageSize: false, width: '210mm', height: '297mm', margin: { top: 0, right: 0, bottom: 0, left: 0 } }));
     }),
 
     // Exato por construcao: viewport 1240x1754 com dsf 1 e o conteudo ampliado por CSS zoom (1240 / 210mm em px).
-    pngEmail: (input) => enfileirar(async (page) => {
-      await paginaA4(page, input);
+    pngEmail: (input, opts) => enfileirar(async (page) => {
+      await paginaA4(page, input, pisoDe(opts));
       await page.setViewport({ width: EMAIL_PX.largura, height: EMAIL_PX.altura, deviceScaleFactor: 1 });
       const medidas = await page.evaluate(async (fator) => {
         document.documentElement.style.zoom = String(fator);

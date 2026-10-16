@@ -30,12 +30,14 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// CSRF simples por sessão: token em req.session, campo oculto `_csrf` nos POSTs.
+// CSRF simples por sessão: token em req.session, enviado no campo `_csrf` do corpo (formulários)
+// ou no cabeçalho `X-CSRF-Token` (fetch JSON e upload binário).
 function csrf(req, res, next) {
   if (!req.session.csrf) req.session.csrf = crypto.randomBytes(32).toString('hex');
   res.locals.csrfToken = req.session.csrf;
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  const enviado = Buffer.from(String((req.body && req.body._csrf) || ''));
+  const doCorpo = req.body && !Array.isArray(req.body) ? req.body._csrf : undefined;
+  const enviado = Buffer.from(String(req.get('x-csrf-token') || doCorpo || ''));
   const esperado = Buffer.from(req.session.csrf);
   if (enviado.length !== esperado.length || !crypto.timingSafeEqual(enviado, esperado)) {
     return res.status(403).send('Requisição inválida (token CSRF)');

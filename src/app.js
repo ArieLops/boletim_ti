@@ -6,6 +6,13 @@ const { makeUsersRepo } = require('./repos/users');
 const { loadUser, requireLogin, csrf } = require('./auth/middleware');
 const { authRoutes } = require('./routes/auth');
 const { usersRoutes } = require('./routes/users');
+const { editionsRoutes } = require('./routes/editions');
+const { exportsRoutes } = require('./routes/exports');
+const { settingsRoutes } = require('./routes/settings');
+const { makeEditionsRepo } = require('./repos/editions');
+const { makeHistoryRepo } = require('./repos/history');
+const { makeFilesRepo } = require('./repos/files');
+const { makeSettingsRepo } = require('./repos/settings');
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ESC[c]);
@@ -30,9 +37,14 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
   app.locals.pool = pool;
   app.locals.exporter = exporter;
   app.locals.users = makeUsersRepo(pool);
+  app.locals.editions = makeEditionsRepo(pool);
+  app.locals.history = makeHistoryRepo(pool);
+  app.locals.files = makeFilesRepo(pool);
+  app.locals.settings = makeSettingsRepo(pool);
   app.locals.close = () => store.close();
 
   app.use(express.urlencoded({ extended: false }));
+  app.use(express.json({ limit: '1mb' }));
   app.use(
     session({
       name: 'sid',
@@ -48,6 +60,9 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
   app.use(loadUser);
   app.use(authRoutes());
   app.use(usersRoutes());
+  app.use(editionsRoutes());
+  app.use(exportsRoutes());
+  app.use(settingsRoutes());
 
   // Provisória: a Task 7 substitui pela tela inicial.
   app.get('/', requireLogin, (req, res) => {
@@ -58,6 +73,16 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
         `<input type="hidden" name="_csrf" value="${esc(res.locals.csrfToken)}">` +
         '<button>Sair</button></form>'
     );
+  });
+
+  // Tratador geral: corpo malformado/grande vira 400/413 em JSON; o resto 500 sem expor detalhes.
+  app.use((err, req, res, next) => {
+    if (res.headersSent) return next(err);
+    if (err.type === 'entity.parse.failed') return res.status(400).json({ erro: 'JSON inválido' });
+    if (err.type === 'entity.too.large') return res.status(413).json({ erro: 'corpo da requisição grande demais' });
+    if (err.status === 400 || err.type === 'encoding.unsupported' || err.type === 'charset.unsupported') return res.status(400).json({ erro: 'requisição inválida' });
+    console.error(err);
+    res.status(500).json({ erro: 'erro interno' });
   });
 
   return app;

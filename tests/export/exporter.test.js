@@ -234,3 +234,26 @@ test('CHROMIUM_PATH apontando para arquivo que nao e Chromium (ou diretorio) -> 
     await e.close();
   }
 });
+
+test('opts.piso por chamada sobrepõe o padrão do exportador (fit, pdf, pngEmail)', async () => {
+  // HTML falso: conteudo mede 1200px * escala (317 mm a 1.0; cabe em 297 mm a partir de 0.90)
+  const renderHtml = () =>
+    '<!doctype html><html><head><meta charset="utf-8"><style>:root{--escala:1}*{margin:0}' +
+    '#conteudo{height:calc(1200px * var(--escala));background:#ccc}</style></head>' +
+    '<body><div class="pagina"><div id="conteudo"></div><div class="rodape">r</div></div></body></html>';
+  const e = createExporter({ renderHtml, piso: 0.75 });
+  try {
+    const entrada = { edicao, blocos: [], settings: {}, logo: null };
+    assert.deepEqual(await e.fit(entrada), { scale: 0.9, estouro: false, faltaMm: 0 });
+    const rigido = await e.fit(entrada, { piso: 1 });
+    assert.equal(rigido.estouro, true);
+    assert.equal(rigido.scale, 1);
+    assert.ok(rigido.faltaMm > 0);
+    assert.equal((await e.fit(entrada, { piso: 0.95 })).estouro, true);
+    assert.equal((await e.fit(entrada, {})).scale, 0.9); // sem piso na opção: padrão
+    assert.equal((await e.pdf(entrada, { piso: 1 })).subarray(0, 4).toString(), '%PDF');
+    assert.deepEqual(ihdr(await e.pngEmail(entrada, { piso: 1 })), { w: 1240, h: 1754 });
+  } finally {
+    await e.close();
+  }
+});
