@@ -47,6 +47,7 @@ test('modos a4 e strip, paleta customizada e rodape', () => {
   const a4 = renderEdition({ edicao, blocos: [], mode: 'a4' });
   assert.ok(a4.includes('210mm') && a4.includes('297mm') && a4.includes('id="conteudo"'));
   assert.ok(renderEdition({ edicao, blocos: [], mode: 'strip' }).includes('1080px'));
+  assert.ok(a4.includes('@page{size:A4;margin:0}'));
   const c = renderEdition({ edicao, blocos: [], settings: { cores: { '--verde-escuro': '#123456' }, rodape: 'X<b>', emailTi: 'a@b.c' } });
   assert.ok(c.includes('--verde-escuro:#123456'));
   assert.ok(c.includes('X&lt;b&gt;') && c.includes('a@b.c'));

@@ -56,7 +56,7 @@ function buildCss({ mode, escala, cores }) {
     : 'display:flex;flex-direction:column;';
   return `${FONT_FACES}${rootVars(escala, cores)}
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{background:var(--fundo);}
+${a4 ? '@page{size:A4;margin:0}\n' : ''}html,body{background:var(--fundo);}
 body{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--texto);-webkit-font-smoothing:antialiased;}
 .pagina{${pagina}background:var(--fundo);}
 #conteudo{${conteudo}}

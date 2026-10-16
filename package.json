@@ -15,7 +15,8 @@
     "express": "^5.3.0",
     "express-mysql-session": "^3.0.3",
     "express-session": "^1.19.0",
-    "mysql2": "^3.24.6"
+    "mysql2": "^3.24.6",
+    "puppeteer-core": "^25.14.0"
   },
   "devDependencies": {
     "supertest": "^7.3.1"
