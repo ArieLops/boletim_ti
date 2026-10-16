@@ -192,3 +192,14 @@ test('[raiz] nenhuma página contém o prefixo /boletim_ti', async () => {
     assert.equal(metaBase(r.text), '');
   }
 });
+
+test('app.locals.u e basePath bastam para renderizar erro fora do Router (tratador global de erros)', async () => {
+  for (const [app, base] of [[appPref, PREFIXO], [appRaiz, '']]) {
+    assert.equal(app.locals.u('/x'), base + '/x');
+    assert.equal(app.locals.basePath, base);
+    const html = await new Promise((ok, falha) => app.render('erro', { titulo: 'Erro', mensagem: 'm' }, (e, h) => (e ? falha(e) : ok(h))));
+    assert.equal(metaBase(html), base);
+    assert.ok(html.includes(`href="${base}/"`), 'link de volta sem prefixo');
+    assert.ok(html.includes(`href="${base}/app.css"`));
+  }
+});

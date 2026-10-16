@@ -10,6 +10,8 @@
 //   (trocar_senha = 0: entra direto, sem pedir troca de senha)
 //
 // BASE_PATH (ex.: BASE_PATH=/boletim_ti) publica a aplicação sob esse prefixo; sem ele, na raiz.
+// No Git Bash do Windows use MSYS_NO_PATHCONV=1 (ou PowerShell) ao definir BASE_PATH=/boletim_ti, senão o
+// caminho é reescrito para C:/Program Files/Git/...
 //
 // Uso: npm run dev     (ou: node --env-file=.env.test scripts/dev-server.js)
 const mysql = require('mysql2/promise');

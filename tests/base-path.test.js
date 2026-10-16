@@ -20,6 +20,13 @@ test('normalizeBasePath: rejeita valores inseguros', () => {
   }
 });
 
+test('normalizeBasePath: rejeita primeiro segmento que colide com rotas da aplicação', () => {
+  for (const v of ['/edicoes', '/api', '/login', '/saude', '/usuarios', '/logout', '/trocar-senha', '/configuracoes', '/api.js', '/app.css', '/edicoes/x']) {
+    assert.throws(() => normalizeBasePath(v), /^Error: BASE_PATH inválido.*colide/, v);
+  }
+  for (const v of ['/edicoes2', '/boletim_ti', '/app', '/x/edicoes', '/apis']) assert.equal(normalizeBasePath(v), v);
+});
+
 test('makeUrl', () => {
   const u = makeUrl('/boletim_ti');
   assert.equal(u('/login'), '/boletim_ti/login');
@@ -27,7 +34,7 @@ test('makeUrl', () => {
   const raiz = makeUrl('');
   assert.equal(raiz('/login'), '/login');
   assert.equal(raiz('/'), '/');
-  for (const p of ['login', '//x', '', undefined, 'http://x']) {
+  for (const p of ['login', '//x', '', undefined, 'http://x', '/\\host']) {
     assert.throws(() => u(p), /caminho/i);
     assert.throws(() => raiz(p), /caminho/i);
   }

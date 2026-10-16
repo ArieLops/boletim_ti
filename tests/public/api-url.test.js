@@ -21,7 +21,7 @@ test('preserva query string e hash', () => {
 });
 
 test('rejeita caminho sem "/" inicial, com "//" inicial ou que não é string', () => {
-  for (const p of ['x', 'edicoes/1', '', '//evil.com/x', 'http://evil.com/x', 'https://evil.com', undefined, null, 5]) {
+  for (const p of ['x', 'edicoes/1', '', '//evil.com/x', 'http://evil.com/x', 'https://evil.com', '/\\host', undefined, null, 5]) {
     assert.throws(() => urlComBase('/boletim_ti', p), /caminho/i, String(p));
     assert.throws(() => urlComBase('', p), /caminho/i, String(p));
   }
@@ -31,6 +31,7 @@ test('não prefixa duas vezes um caminho que já começa com a base + "/"', () =
   assert.equal(urlComBase('/boletim_ti', '/boletim_ti/edicoes/1'), '/boletim_ti/edicoes/1');
   assert.equal(urlComBase('/boletim_ti', '/boletim_ti'), '/boletim_ti');
   assert.equal(urlComBase('/boletim_ti', '/boletim_ti?a=1'), '/boletim_ti?a=1');
+  assert.equal(urlComBase('/boletim_ti', '/boletim_ti#h'), '/boletim_ti#h');
   // idempotente: aplicar de novo não muda
   const uma = urlComBase('/boletim_ti', '/login');
   assert.equal(urlComBase('/boletim_ti', uma), uma);

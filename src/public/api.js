@@ -2,11 +2,11 @@
 // Sessão expirada (401) leva ao login. Todas as URLs são prefixadas com o BASE_PATH lido de
 // <meta name="base-path"> (vazio na raiz); quem chama passa caminhos da APLICAÇÃO ("/edicoes/1").
 
-// Pura (testável em Node): prefixa `path` com `base`. `path` deve começar com "/" e não com "//".
+// Pura (testável em Node): prefixa `path` com `base`. `path` deve começar com "/" e não com "//" nem "/\\".
 // Query e hash são preservados. Caminho que já começa com a base não é prefixado de novo.
 function urlComBase(base, path) {
-  if (typeof path !== 'string' || path.charAt(0) !== '/' || path.charAt(1) === '/') {
-    throw new Error('caminho interno inválido: ' + JSON.stringify(path) + ' (deve começar com "/" e não com "//")');
+  if (typeof path !== 'string' || path.charAt(0) !== '/' || path.charAt(1) === '/' || path.charAt(1) === '\\') {
+    throw new Error('caminho interno inválido: ' + JSON.stringify(path) + ' (deve começar com "/" e não com "//" nem "/\\")');
   }
   if (!base) return path;
   const depois = path.charAt(base.length);
