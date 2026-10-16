@@ -16,7 +16,7 @@ function authRoutes({ throttle = createThrottle() } = {}) {
   const r = express.Router();
 
   r.get('/login', (req, res) => {
-    if (req.user) return res.redirect('/');
+    if (req.user) return res.redirect(req.app.locals.url('/'));
     res.render('login', { erro: null });
   });
 
@@ -39,15 +39,15 @@ function authRoutes({ throttle = createThrottle() } = {}) {
       req.session.userId = u.id;
       req.session.save((e2) => {
         if (e2) return res.status(500).send('Erro interno');
-        res.redirect(u.trocar_senha ? '/trocar-senha' : '/');
+        res.redirect(req.app.locals.url(u.trocar_senha ? '/trocar-senha' : '/'));
       });
     });
   });
 
   r.post('/logout', (req, res) => {
     req.session.destroy(() => {
-      res.clearCookie('sid');
-      res.redirect('/login');
+      res.clearCookie('boletim.sid', { path: req.app.locals.basePath || '/' });
+      res.redirect(req.app.locals.url('/login'));
     });
   });
 
@@ -63,7 +63,7 @@ function authRoutes({ throttle = createThrottle() } = {}) {
     else if (senha !== confirmacao) erro = 'A confirmação não confere com a senha.';
     if (erro) return res.status(400).render('trocar-senha', { erro });
     await req.app.locals.users.setPassword(req.user.id, senha);
-    res.redirect('/');
+    res.redirect(req.app.locals.url('/'));
   });
 
   return r;

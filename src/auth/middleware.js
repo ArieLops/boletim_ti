@@ -1,11 +1,16 @@
 const crypto = require('node:crypto');
+const { relativePath } = require('../base-path');
+
+// Destino de redirect: sempre uma constante interna, prefixada por BASE_PATH.
+const destino = (req, caminho) => req.app.locals.url(caminho);
 
 // Contrato para chamadas fetch: requisições "de API" recebem erros JSON (401/403) em vez de
 // redirecionamentos/HTML. É API se o caminho começa com /api/, ou Accept inclui application/json,
 // ou Content-Type é application/json. Os fetch do front-end (Task 7) DEVEM enviar
 // `Accept: application/json`. Navegação normal (páginas, prévia, links de download) mantém redirect/texto.
 function wantsJson(req) {
-  const url = req.originalUrl || req.url || '';
+  // "/api/" é avaliado no caminho relativo ao prefixo de publicação (BASE_PATH).
+  const url = relativePath((req.app && req.app.locals.basePath) || '', req.originalUrl || req.url || '');
   return (
     url.startsWith('/api/') ||
     String(req.get('accept') || '').includes('application/json') ||
@@ -20,7 +25,7 @@ async function loadUser(req, res, next) {
   const u = await req.app.locals.users.getById(id);
   if (!u || !u.ativo) {
     return req.session.destroy(() =>
-      wantsJson(req) ? res.status(401).json({ erro: 'sessão expirada' }) : res.redirect('/login')
+      wantsJson(req) ? res.status(401).json({ erro: 'sessão expirada' }) : res.redirect(destino(req, '/login'))
     );
   }
   req.user = u;
@@ -30,14 +35,14 @@ async function loadUser(req, res, next) {
 
 // Exige apenas sessão válida (usada na própria tela de troca de senha).
 function requireSession(req, res, next) {
-  if (!req.user) return res.redirect('/login');
+  if (!req.user) return res.redirect(destino(req, '/login'));
   next();
 }
 
 function requireLogin(req, res, next) {
-  if (!req.user) return wantsJson(req) ? res.status(401).json({ erro: 'sessão expirada' }) : res.redirect('/login');
+  if (!req.user) return wantsJson(req) ? res.status(401).json({ erro: 'sessão expirada' }) : res.redirect(destino(req, '/login'));
   if (req.user.trocar_senha) {
-    return wantsJson(req) ? res.status(403).json({ erro: 'troca de senha obrigatória' }) : res.redirect('/trocar-senha');
+    return wantsJson(req) ? res.status(403).json({ erro: 'troca de senha obrigatória' }) : res.redirect(destino(req, '/trocar-senha'));
   }
   next();
 }

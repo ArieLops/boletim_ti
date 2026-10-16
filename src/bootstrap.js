@@ -9,6 +9,7 @@ function buildServer({ config, pool, exporter }) {
     cookieSecure: config.cookieSecure,
     sessionSecret: config.sessionSecret,
     sessionHours: config.sessionHours,
+    basePath: config.basePath,
   });
   return { app, close: () => app.locals.close() };
 }

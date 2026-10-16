@@ -39,11 +39,11 @@ function fakeExporter() {
   return ex;
 }
 
-async function setup({ exporter } = {}) {
+async function setup({ exporter, basePath } = {}) {
   process.env.BCRYPT_COST ??= '4';
   const pool = await resetTestDb();
   const users = makeUsersRepo(pool);
-  const app = createApp({ pool, exporter, cookieSecure: false, sessionSecret: 'segredo-de-teste', sessionHours: 1 });
+  const app = createApp({ pool, exporter, cookieSecure: false, sessionSecret: 'segredo-de-teste', sessionHours: 1, basePath });
   const ed = await users.createUser({ nome: 'Edu', login: 'edu', senha: 'senha-edu-123', perfil: 'editor' });
   await users.setPassword(ed, 'senha-edu-123');
   const ed2 = await users.createUser({ nome: 'Ana <Editora>', login: 'ana', senha: 'senha-ana-123', perfil: 'editor' });
@@ -57,13 +57,13 @@ async function setup({ exporter } = {}) {
 }
 
 // Entra e devolve agente + token CSRF (lido da página inicial) + atalhos JSON.
-async function entrar(app, login, senha) {
+async function entrar(app, login, senha, base = '') {
   const agent = request.agent(app);
-  const pg = await agent.get('/login');
+  const pg = await agent.get(base + '/login');
   const t0 = /name="_csrf" value="([^"]+)"/.exec(pg.text)[1];
-  const r = await agent.post('/login').type('form').send({ login, senha, _csrf: t0 });
+  const r = await agent.post(base + '/login').type('form').send({ login, senha, _csrf: t0 });
   if (r.status !== 302) throw new Error(`login falhou: ${r.status}`);
-  const home = await agent.get('/');
+  const home = await agent.get(base + '/');
   const csrf = /name="_csrf" value="([^"]+)"/.exec(home.text)[1];
   const send = (m) => (url, body) => {
     const q = agent[m](url).set('X-CSRF-Token', csrf);

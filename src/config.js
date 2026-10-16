@@ -1,6 +1,8 @@
 // A validação é feita em loadConfig(); `config` é construído sob demanda
 // (getter) para que testes que não definem SESSION_SECRET/DB_* possam
 // importar módulos sem que o import quebre.
+const { normalizeBasePath } = require('./base-path');
+
 function loadConfig(env = process.env) {
   const obrigatorias = ['SESSION_SECRET', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
   const faltando = obrigatorias.filter((k) => !env[k]);
@@ -22,6 +24,8 @@ function loadConfig(env = process.env) {
     minScale: 0.75,
     bcryptCost: Number(env.BCRYPT_COST) || 12,
     cookieSecure: env.COOKIE_SECURE !== 'false',
+    // Prefixo de publicação (ex.: /boletim_ti); inválido derruba a subida com mensagem clara.
+    basePath: normalizeBasePath(env.BASE_PATH),
   };
 }
 

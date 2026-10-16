@@ -14,15 +14,19 @@ const { makeEditionsRepo } = require('./repos/editions');
 const { makeHistoryRepo } = require('./repos/history');
 const { makeFilesRepo } = require('./repos/files');
 const { makeSettingsRepo } = require('./repos/settings');
+const { normalizeBasePath, makeUrl } = require('./base-path');
 
 // Opções ausentes caem em `config` (que valida o .env); testes passam tudo explicitamente.
-function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours } = {}) {
+function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, basePath } = {}) {
   const needsConfig = cookieSecure === undefined || sessionSecret === undefined || sessionHours === undefined;
   const cfg = needsConfig ? require('./config').config : {};
   const secure = cookieSecure ?? cfg.cookieSecure;
   const secret = sessionSecret ?? cfg.sessionSecret;
   const hours = sessionHours ?? cfg.sessionHours;
   const maxAge = hours * 3600 * 1000;
+  // Prefixo de publicação (ex.: /boletim_ti). Sem a opção, só a config carregada acima pode fornecê-lo.
+  const base = normalizeBasePath(basePath ?? cfg.basePath);
+  const url = makeUrl(base);
 
   const app = express();
   app.set('trust proxy', 1);
@@ -32,6 +36,8 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
 
   // O pool é do chamador: o store não o encerra no close().
   const store = new MySQLStore({ expiration: maxAge }, pool);
+  app.locals.basePath = base;
+  app.locals.url = url;
   app.locals.pool = pool;
   app.locals.exporter = exporter;
   app.locals.users = makeUsersRepo(pool);
@@ -49,7 +55,8 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
   };
 
   // Saúde para monitoramento: sem sessão/login, ping barato no banco, sem detalhes no erro.
-  app.get('/saude', async (req, res) => {
+  // Fica na raiz (healthcheck do Docker) e também sob o prefixo; ambos antes da sessão.
+  const saude = async (req, res) => {
     try {
       await app.locals.pool.query('SELECT 1');
       res.json({ ok: true });
@@ -57,31 +64,45 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours }
       console.error('saude: falha no banco:', err.code || err.message);
       res.status(503).json({ ok: false });
     }
-  });
+  };
+  app.get('/saude', saude);
+  if (base) app.get(base + '/saude', saude);
 
+  // Tudo que exige sessão vive em um único Router, montado em base || '/'. Fora do prefixo nada disso
+  // executa (nem a sessão): cai no 404 simples abaixo.
+  const root = express.Router();
+  root.use((req, res, next) => {
+    res.locals.u = url;
+    res.locals.basePath = base;
+    next();
+  });
   // Estáticos (css/js das telas) antes da sessão: não criam sessão nem exigem login.
-  app.use(express.static(path.join(__dirname, 'public')));
-  app.use(express.urlencoded({ extended: false }));
-  app.use(express.json({ limit: '1mb' }));
-  app.use(
+  root.use(express.static(path.join(__dirname, 'public')));
+  root.use(express.urlencoded({ extended: false }));
+  root.use(express.json({ limit: '1mb' }));
+  root.use(
     session({
-      name: 'sid',
+      name: 'boletim.sid', // distinto de 'sid'/'PHPSESSID' de outras aplicações no mesmo host
       secret,
       store,
       resave: false,
       saveUninitialized: false,
       rolling: true,
-      cookie: { httpOnly: true, sameSite: 'lax', secure, maxAge },
+      cookie: { httpOnly: true, sameSite: 'lax', secure, maxAge, path: base || '/' },
     })
   );
-  app.use(csrf);
-  app.use(loadUser);
-  app.use(authRoutes());
-  app.use(usersRoutes());
-  app.use(editionsRoutes());
-  app.use(exportsRoutes());
-  app.use(settingsRoutes());
-  app.use(screensRoutes());
+  root.use(csrf);
+  root.use(loadUser);
+  root.use(authRoutes());
+  root.use(usersRoutes());
+  root.use(editionsRoutes());
+  root.use(exportsRoutes());
+  root.use(settingsRoutes());
+  root.use(screensRoutes());
+  app.use(base || '/', root);
+
+  // Qualquer outra coisa (fora do prefixo ou rota desconhecida): texto simples, sem detalhes.
+  app.use((req, res) => res.status(404).type('text').send('Não encontrado'));
 
   // Tratador geral: corpo malformado/grande vira 400/413 em JSON; o resto 500 sem expor detalhes.
   app.use((err, req, res, next) => {

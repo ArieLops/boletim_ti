@@ -29,7 +29,7 @@ function usersRoutes() {
       if (e.code === 'ER_DUP_ENTRY') return render(req, res, 400, 'Já existe um usuário com esse login.');
       throw e;
     }
-    res.redirect('/usuarios');
+    res.redirect(req.app.locals.url('/usuarios'));
   });
 
   r.post('/usuarios/:id/senha', async (req, res) => {
@@ -40,7 +40,7 @@ function usersRoutes() {
     }
     if (senha.length < MIN_SENHA) return render(req, res, 400, `A senha deve ter pelo menos ${MIN_SENHA} caracteres.`);
     await req.app.locals.users.setTemporaryPassword(id, senha);
-    res.redirect('/usuarios');
+    res.redirect(req.app.locals.url('/usuarios'));
   });
 
   r.post('/usuarios/:id/ativo', async (req, res) => {
@@ -51,7 +51,7 @@ function usersRoutes() {
     }
     if (!ativo && id === req.user.id) return render(req, res, 400, 'Você não pode desativar o próprio usuário.');
     await req.app.locals.users.setActive(id, ativo);
-    res.redirect('/usuarios');
+    res.redirect(req.app.locals.url('/usuarios'));
   });
 
   return r;
