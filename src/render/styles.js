@@ -101,7 +101,7 @@ body{font-family:Inter,"Segoe UI",system-ui,sans-serif,"Noto Color Emoji","Apple
 .marca .senar{font-size:${s(44)};font-weight:800;line-height:1;color:#fff;letter-spacing:${s(0.5)};}
 .marca .rgs{margin-top:${s(8)};font-size:${s(15)};font-weight:700;line-height:1;color:var(--verde-palido);letter-spacing:${s(0.3)};}
 .cabecalho .nome{position:absolute;left:${s(56)};bottom:${s(22)};font-size:${s(24)};font-weight:700;line-height:1.1;color:#fff;max-width:60%;}
-.cabecalho .logo{position:absolute;right:${s(53)};top:${s(11)};width:${s(157)};height:${s(157)};background:#fff;}
+.cabecalho .logo{position:absolute;right:${s(53)};top:${s(14)};width:${s(300)};height:${s(155)};}
 .cabecalho .logo img{display:block;width:100%;height:100%;object-fit:contain;}
 .linha-edicao{padding:${s(10)} ${s(56)} 0;font-size:${s(11)};font-weight:700;letter-spacing:${s(0.4)};color:var(--teal);text-transform:uppercase;white-space:pre-wrap;}
 .corpo{padding:${s(24)} ${s(48)} ${s(16)};flex:1 0 auto;}
