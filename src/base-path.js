@@ -5,7 +5,7 @@ const SEGMENTOS = /^\/[A-Za-z0-9._~-]+(\/[A-Za-z0-9._~-]+)*$/;
 // Primeiros segmentos que colidem com rotas/estáticos da aplicação: com base "/edicoes", o cliente não
 // distinguiria "/edicoes/1" (já prefixado?) de um caminho da aplicação (urlComBase não prefixa de novo).
 const RESERVADOS = new Set([
-  'edicoes', 'usuarios', 'configuracoes', 'api', 'login', 'logout', 'trocar-senha', 'saude',
+  'edicoes', 'usuarios', 'configuracoes', 'api', 'login', 'logout', 'trocar-senha', 'saude', 'p',
   'app.css', 'api.js', 'editor.js', 'editor-lib.js', 'nova.js', 'configuracoes.js',
 ]);
 

@@ -21,10 +21,10 @@ test('normalizeBasePath: rejeita valores inseguros', () => {
 });
 
 test('normalizeBasePath: rejeita primeiro segmento que colide com rotas da aplicação', () => {
-  for (const v of ['/edicoes', '/api', '/login', '/saude', '/usuarios', '/logout', '/trocar-senha', '/configuracoes', '/api.js', '/app.css', '/edicoes/x']) {
+  for (const v of ['/edicoes', '/api', '/login', '/saude', '/usuarios', '/logout', '/trocar-senha', '/configuracoes', '/api.js', '/app.css', '/edicoes/x', '/p', '/p/x']) {
     assert.throws(() => normalizeBasePath(v), /^Error: BASE_PATH inválido.*colide/, v);
   }
-  for (const v of ['/edicoes2', '/boletim_ti', '/app', '/x/edicoes', '/apis']) assert.equal(normalizeBasePath(v), v);
+  for (const v of ['/edicoes2', '/boletim_ti', '/app', '/x/edicoes', '/apis', '/p2', '/x/p']) assert.equal(normalizeBasePath(v), v);
 });
 
 test('makeUrl', () => {

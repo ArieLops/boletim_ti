@@ -1,9 +1,11 @@
 const express = require('express');
 const { requireLogin } = require('../auth/middleware');
 const { insertEvent } = require('../repos/history');
+const tokenPublico = require('../domain/token');
 const { erro, carregarEdicao, exportador, contextoExport, numeroFmt, trataExportador } = require('./common');
 
 const WHATSAPP_ALTURA_MAX = 4000;
+const TENTATIVAS_TOKEN = 3;
 
 // :tipo da URL -> tipo no banco, Content-Type, sufixo do arquivo e se depende do ajuste A4.
 const TIPOS = {
@@ -15,13 +17,14 @@ const TIPOS = {
 const confirmou = (req) => String(req.query.confirmar ?? (req.body && req.body.confirmar) ?? '') === '1';
 const MSG_CORTADO = 'conteúdo será cortado';
 
-// Publicação atômica: arquivos + status + histórico na mesma transação (ou nada muda).
+// Publicação atômica: arquivos + status + token + histórico na mesma transação (ou nada muda).
+// Devolve { falha } (status/msg) ou { token }.
 async function publicarTx(req, edicao, arquivos, fit) {
   const { pool, files } = req.app.locals;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [rows] = await conn.query('SELECT status, versao FROM edicoes WHERE id = ? FOR UPDATE', [edicao.id]);
+    const [rows] = await conn.query('SELECT status, versao, token_publico FROM edicoes WHERE id = ? FOR UPDATE', [edicao.id]);
     const atual = rows[0];
     let falha = null;
     if (!atual) falha = { status: 404, msg: 'edição não encontrada' };
@@ -29,13 +32,30 @@ async function publicarTx(req, edicao, arquivos, fit) {
     else if (atual.versao !== edicao.versao) falha = { status: 409, msg: 'a edição foi alterada durante a publicação; tente novamente' };
     if (falha) {
       await conn.rollback();
-      return falha;
+      return { falha };
     }
     await files.saveFiles(edicao.id, req.user.id, arquivos, conn);
-    await conn.query("UPDATE edicoes SET status = 'publicada', atualizado_por = ? WHERE id = ?", [req.user.id, edicao.id]);
+    // O token é criado só na primeira publicação e nunca muda (reabrir não o apaga). O índice único é a
+    // rede de segurança contra colisão: nesse caso (praticamente impossível) sorteia outro, até 3 vezes.
+    let token = atual.token_publico;
+    const criado = !token;
+    if (criado) {
+      for (let tentativa = 1; ; tentativa++) {
+        token = tokenPublico.novoToken();
+        try {
+          await conn.query("UPDATE edicoes SET status = 'publicada', atualizado_por = ?, token_publico = ? WHERE id = ?", [req.user.id, token, edicao.id]);
+          break;
+        } catch (err) {
+          if (err.code !== 'ER_DUP_ENTRY' || tentativa >= TENTATIVAS_TOKEN) throw err;
+        }
+      }
+    } else {
+      await conn.query("UPDATE edicoes SET status = 'publicada', atualizado_por = ? WHERE id = ?", [req.user.id, edicao.id]);
+    }
     await insertEvent(conn, edicao.id, req.user.id, 'publicada', { numero: edicao.numero, escala: fit.scale, estouro: fit.estouro });
+    if (criado) await insertEvent(conn, edicao.id, req.user.id, 'link_publico_criado', { numero: edicao.numero });
     await conn.commit();
-    return null;
+    return { token };
   } catch (err) {
     await conn.rollback().catch(() => {});
     throw err;
@@ -104,9 +124,9 @@ function exportsRoutes() {
       console.error('Falha ao gerar os arquivos da publicação:', e);
       return erro(res, 503, 'Não foi possível gerar os arquivos agora. Tente novamente ou avise a TI.');
     }
-    const falha = await publicarTx(req, edicao, arquivos, fit);
+    const { falha, token } = await publicarTx(req, edicao, arquivos, fit);
     if (falha) return erro(res, falha.status, falha.msg);
-    res.json({ status: 'publicada' });
+    res.json({ status: 'publicada', token });
   });
 
   r.post('/edicoes/:id/reabrir', carregarEdicao, async (req, res) => {
