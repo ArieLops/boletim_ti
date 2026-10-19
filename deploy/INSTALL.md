@@ -195,7 +195,7 @@ cd /opt/boletim
 sudo -u boletim node --env-file=/etc/boletim/boletim.env scripts/smoke-export.js /tmp/smoke
 ```
 
-Esperado: três linhas `PASS` (PDF com 1 página, PNG de e-mail 1240x1754, PNG de WhatsApp com largura 1080) e `RESULTADO: PASS` (código de saída 0). Abra o PDF (`comunicado-smoke.pdf`) e o PNG (`comunicado-smoke-email.png`) e procure, no fim do bloco de dica, a linha **"Teste de glifos: ✅ ⚠️ 📌 → ✓"**: ela deve mostrar ícones; se aparecerem quadrados vazios, as fontes do Passo 2 não foram instaladas (ou o Chrome precisa ser reiniciado depois de instalá-las). O resultado PASS/FAIL do script não avalia isso: a conferência é visual. Em caso de `FAIL`:
+Esperado: três linhas `PASS` (PDF com 1 página, PNG de e-mail 1240x1754, PNG de WhatsApp A4 1080x1527) e `RESULTADO: PASS` (código de saída 0). Abra o PDF (`comunicado-smoke.pdf`) e o PNG (`comunicado-smoke-email.png`) e procure, no fim do bloco de dica, a linha **"Teste de glifos: ✅ ⚠️ 📌 → ✓"**: ela deve mostrar ícones; se aparecerem quadrados vazios, as fontes do Passo 2 não foram instaladas (ou o Chrome precisa ser reiniciado depois de instalá-las). O resultado PASS/FAIL do script não avalia isso: a conferência é visual. Em caso de `FAIL`:
 
 1. "Navegador ... não encontrado": corrija `CHROMIUM_PATH` (`ls -l` no caminho; não pode ser o atalho do snap).
 2. Erro mencionando sandbox/namespace/"No usable sandbox": no Ubuntu 24.04 veja o Passo 2; como último recurso adicione `CHROMIUM_NO_SANDBOX=1` ao `boletim.env` e rode de novo.

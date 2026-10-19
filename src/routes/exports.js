@@ -4,14 +4,13 @@ const { insertEvent } = require('../repos/history');
 const tokenPublico = require('../domain/token');
 const { erro, carregarEdicao, exportador, contextoExport, numeroFmt, trataExportador } = require('./common');
 
-const WHATSAPP_ALTURA_MAX = 4000;
 const TENTATIVAS_TOKEN = 3;
 
 // :tipo da URL -> tipo no banco, Content-Type, sufixo do arquivo e se depende do ajuste A4.
 const TIPOS = {
   pdf: { db: 'pdf', mime: 'application/pdf', sufixo: '.pdf', a4: true, gerar: (ex, i, o) => ex.pdf(i, o) },
   'png-email': { db: 'png_email', mime: 'image/png', sufixo: '-email.png', a4: true, gerar: (ex, i, o) => ex.pngEmail(i, o) },
-  'png-whatsapp': { db: 'png_whatsapp', mime: 'image/png', sufixo: '-whatsapp.png', a4: false, gerar: (ex, i) => ex.pngWhatsapp(i) },
+  'png-whatsapp': { db: 'png_whatsapp', mime: 'image/png', sufixo: '-whatsapp.png', a4: true, gerar: (ex, i, o) => ex.pngWhatsapp(i, o) },
 };
 
 const confirmou = (req) => String(req.query.confirmar ?? (req.body && req.body.confirmar) ?? '') === '1';
@@ -91,13 +90,12 @@ async function reabrirTx(req, id) {
   }
 }
 
-function enviar(res, edicao, t, buffer, aviso) {
+function enviar(res, edicao, t, buffer) {
   res.set({
     'Content-Type': t.mime,
     'Content-Disposition': `attachment; filename="comunicado-${numeroFmt(edicao.numero)}${t.sufixo}"`,
     'Cache-Control': 'no-store',
   });
-  if (aviso) res.set('X-Aviso', 'imagem muito alta');
   res.send(buffer);
 }
 
@@ -117,7 +115,7 @@ function exportsRoutes() {
       if (fit.estouro && !confirmou(req)) return erro(res, 409, MSG_CORTADO, { faltaMm: fit.faltaMm });
       const pdf = await ex.pdf(input, opts);
       const pngEmail = await ex.pngEmail(input, opts);
-      const pngWhatsapp = await ex.pngWhatsapp(input);
+      const pngWhatsapp = await ex.pngWhatsapp(input, opts);
       arquivos = { pdf, pngEmail, pngWhatsapp };
     } catch (e) {
       if (trataExportador(res, e)) return;
@@ -142,13 +140,10 @@ function exportsRoutes() {
     const { files, history } = req.app.locals;
 
     let buffer = null;
-    let aviso = false;
     if (edicao.status === 'publicada') {
       const f = await files.getFile(edicao.id, t.db);
       if (f) {
         buffer = f.conteudo;
-        // Altura vem do cabeçalho IHDR do próprio PNG guardado (sem chamar o exportador).
-        if (t.db === 'png_whatsapp') aviso = buffer.readUInt32BE(20) > WHATSAPP_ALTURA_MAX;
       }
     }
     if (!buffer) {
@@ -160,14 +155,13 @@ function exportsRoutes() {
           if (fit.estouro && !confirmou(req)) return erro(res, 409, MSG_CORTADO, { faltaMm: fit.faltaMm });
         }
         buffer = await t.gerar(ex, input, opts);
-        if (!t.a4) aviso = Boolean((await ex.whatsappInfo(input)).muitoAlta);
       } catch (e) {
         if (trataExportador(res, e)) return;
         throw e;
       }
     }
     await history.logHistory(edicao.id, req.user.id, 'baixou', { tipo: req.params.tipo });
-    enviar(res, edicao, t, buffer, aviso);
+    enviar(res, edicao, t, buffer);
   });
 
   return r;

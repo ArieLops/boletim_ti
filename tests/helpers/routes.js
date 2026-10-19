@@ -19,10 +19,9 @@ const pngFake = (altura, tag) => {
 function fakeExporter() {
   let n = 0;
   const ex = {
-    calls: { fit: 0, pdf: 0, pngEmail: 0, pngWhatsapp: 0, whatsappInfo: 0 },
+    calls: { fit: 0, pdf: 0, pngEmail: 0, pngWhatsapp: 0 },
     pisos: [],
     fitResult: { scale: 1, estouro: false, faltaMm: 0 },
-    info: { largura: 1080, altura: 1500, muitoAlta: false },
     indisponivel: false,
     falhaEm: null,
     async close() {},
@@ -33,8 +32,7 @@ function fakeExporter() {
   ex.fit = async (_i, o) => { ex.calls.fit++; ex.pisos.push(o && o.piso); guard('fit'); return ex.fitResult; };
   ex.pdf = async (_i, o) => { ex.calls.pdf++; ex.pisos.push(o && o.piso); guard('pdf'); return Buffer.from(`%PDF-fake-${++n}`); };
   ex.pngEmail = async (_i, o) => { ex.calls.pngEmail++; ex.pisos.push(o && o.piso); guard('pngEmail'); return pngFake(1754, `em${++n}`); };
-  ex.pngWhatsapp = async () => { ex.calls.pngWhatsapp++; guard('pngWhatsapp'); return pngFake(ex.info.altura, `wa${++n}`); };
-  ex.whatsappInfo = async () => { ex.calls.whatsappInfo++; guard('whatsappInfo'); return ex.info; };
+  ex.pngWhatsapp = async (_i, o) => { ex.calls.pngWhatsapp++; ex.pisos.push(o && o.piso); guard('pngWhatsapp'); return pngFake(1527, `wa${++n}`); };
   ex.reset = () => { for (const k of Object.keys(ex.calls)) ex.calls[k] = 0; ex.pisos.length = 0; };
   return ex;
 }

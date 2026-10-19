@@ -18,7 +18,6 @@ after(() => ctx.close());
 beforeEach(() => {
   ex.reset();
   ex.fitResult = { scale: 1, estouro: false, faltaMm: 0 };
-  ex.info = { largura: 1080, altura: 1500, muitoAlta: false };
   ex.indisponivel = false;
   ex.falhaEm = null;
 });
@@ -167,7 +166,7 @@ test('download de publicada devolve exatamente os bytes do banco sem chamar o ex
   assert.ok(a.body.equals(pdf));
   assert.ok(b.body.equals(pe));
   assert.ok(c.body.equals(pw));
-  assert.deepEqual(Object.values(ex.calls), [0, 0, 0, 0, 0]);
+  assert.deepEqual(Object.values(ex.calls), [0, 0, 0, 0]);
   assert.equal(a.headers['content-type'], 'application/pdf');
   assert.equal(b.headers['content-type'], 'image/png');
   assert.equal(c.headers['content-type'], 'image/png');
@@ -177,19 +176,6 @@ test('download de publicada devolve exatamente os bytes do banco sem chamar o ex
   assert.equal(b.headers['content-disposition'], `attachment; filename="comunicado-${n}-email.png"`);
   assert.equal(c.headers['content-disposition'], `attachment; filename="comunicado-${n}-whatsapp.png"`);
   assert.equal(a.headers['cache-control'], 'no-store');
-});
-
-test('download de publicada: png-whatsapp muito alto traz X-Aviso (lido do PNG guardado)', async () => {
-  const id = await nova();
-  ex.info = { largura: 1080, altura: 5000, muitoAlta: true };
-  await edu.post(`/edicoes/${id}/publicar`);
-  ex.reset();
-  const r = await binario(edu.get(`/edicoes/${id}/download/png-whatsapp`));
-  assert.equal(r.headers['x-aviso'], 'imagem muito alta');
-  const ok = await nova();
-  ex.info = { largura: 1080, altura: 1500, muitoAlta: false };
-  await edu.post(`/edicoes/${ok}/publicar`);
-  assert.equal((await binario(edu.get(`/edicoes/${ok}/download/png-whatsapp`))).headers['x-aviso'], undefined);
 });
 
 test('download de rascunho gera na hora, sem gravar arquivos', async () => {
@@ -204,18 +190,10 @@ test('download de rascunho gera na hora, sem gravar arquivos', async () => {
   assert.match(e.headers['content-disposition'], /-email\.png"$/);
 });
 
-test('download de rascunho: png-whatsapp muito alto avisa; normal não', async () => {
-  const id = await nova();
-  ex.info = { largura: 1080, altura: 6000, muitoAlta: true };
-  assert.equal((await binario(edu.get(`/edicoes/${id}/download/png-whatsapp`))).headers['x-aviso'], 'imagem muito alta');
-  ex.info = { largura: 1080, altura: 900, muitoAlta: false };
-  assert.equal((await binario(edu.get(`/edicoes/${id}/download/png-whatsapp`))).headers['x-aviso'], undefined);
-});
-
-test('download A4 com estouro exige confirmar=1; whatsapp não depende do fit', async () => {
+test('download A4 com estouro exige confirmar=1 (pdf, png-email e png-whatsapp)', async () => {
   const id = await nova();
   ex.fitResult = { scale: 0.75, estouro: true, faltaMm: 9 };
-  for (const tipo of ['pdf', 'png-email']) {
+  for (const tipo of ['pdf', 'png-email', 'png-whatsapp']) {
     const r = await edu.get(`/edicoes/${id}/download/${tipo}`);
     assert.equal(r.status, 409, tipo);
     assert.equal(r.body.erro, 'conteúdo será cortado');
@@ -223,8 +201,6 @@ test('download A4 com estouro exige confirmar=1; whatsapp não depende do fit', 
     const ok = await binario(edu.get(`/edicoes/${id}/download/${tipo}?confirmar=1`));
     assert.equal(ok.status, 200, tipo);
   }
-  const w = await binario(edu.get(`/edicoes/${id}/download/png-whatsapp`));
-  assert.equal(w.status, 200);
 });
 
 test('download registra "baixou" com o tipo no histórico', async () => {

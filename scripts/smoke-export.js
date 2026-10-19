@@ -52,7 +52,7 @@ async function main() {
     const wa = await exporter.pngWhatsapp(entrada);
     fs.writeFileSync(path.join(dir, 'comunicado-smoke-whatsapp.png'), wa);
     const w = ehPng(wa) ? ihdr(wa) : { w: 0, h: 0 };
-    checar('PNG WhatsApp largura 1080', w.w === 1080 && w.h > 0, `${wa.length} bytes, ${w.w}x${w.h}`);
+    checar('PNG WhatsApp A4 1080x1527', w.w === 1080 && w.h === 1527, `${wa.length} bytes, ${w.w}x${w.h}`);
   } catch (err) {
     checar('Exportação', false, `${err.name}: ${err.message}`);
     console.log('Dica: confira CHROMIUM_PATH; em Ubuntu 24.04/snap/contêiner tente CHROMIUM_NO_SANDBOX=1 (veja deploy/INSTALL.md).');

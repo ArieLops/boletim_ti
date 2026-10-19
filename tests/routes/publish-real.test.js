@@ -40,5 +40,6 @@ test(`[${nome}] integração com Chromium real: publicar guarda PDF e PNGs váli
   assert.ok(pw.subarray(0, 8).equals(PNG_SIG));
   assert.equal(pe.readUInt32BE(16), 1240);
   assert.equal(pw.readUInt32BE(16), 1080);
+  assert.equal(pw.readUInt32BE(20), 1527); // folha A4 inteira, como o PDF e o PNG de e-mail
 }, { timeout: 120000 });
 }

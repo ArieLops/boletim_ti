@@ -45,24 +45,23 @@ test('pngEmail: 1240x1754 exatos', async () => {
   assert.deepEqual(ihdr(buf), { w: 1240, h: 1754 });
 });
 
-test('pngWhatsapp: largura 1080 e altura do conteudo; whatsappInfo coerente', async () => {
+test('pngWhatsapp: folha A4 inteira, 1080x1527 exatos (mesma proporcao do PDF)', async () => {
   const buf = await exp.pngWhatsapp(normal);
-  const info = await exp.whatsappInfo(normal);
   assert.equal(buf.subarray(0, 8).toString('hex'), PNG_SIG);
-  assert.equal(ihdr(buf).w, 1080);
-  assert.equal(ihdr(buf).h, info.altura);
-  assert.equal(info.largura, 1080);
-  assert.equal(info.muitoAlta, false);
-  const gigante = await exp.whatsappInfo(trinta);
-  assert.equal(gigante.muitoAlta, true);
-  assert.ok(gigante.altura > 4000);
+  assert.deepEqual(ihdr(buf), { w: 1080, h: 1527 });
+  // mesma proporcao A4 do PNG de e-mail (1240x1754): 297/210 com diferenca de arredondamento < 1 px
+  assert.ok(Math.abs(1080 * 297 / 210 - 1527) < 1);
+});
+
+test('pngWhatsapp: conteudo longo continua em 1080x1527 (reduz para caber, nao vira faixa alta)', async () => {
+  assert.deepEqual(ihdr(await exp.pngWhatsapp(trinta)), { w: 1080, h: 1527 });
 });
 
 test('edicao vazia (0 blocos) exporta PDF e PNGs', async () => {
   const pdf = await exp.pdf(vazia);
   assert.equal(pdf.subarray(0, 4).toString(), '%PDF');
   assert.deepEqual(ihdr(await exp.pngEmail(vazia)), { w: 1240, h: 1754 });
-  assert.equal(ihdr(await exp.pngWhatsapp(vazia)).w, 1080);
+  assert.deepEqual(ihdr(await exp.pngWhatsapp(vazia)), { w: 1080, h: 1527 });
   assert.deepEqual(await exp.fit(vazia), { scale: 1, estouro: false, faltaMm: 0 });
 });
 
@@ -196,7 +195,7 @@ test('relanca o navegador apos queda (close por fora e kill do processo)', async
     assert.notEqual(b1, b2);
     b2.process().kill('SIGKILL');
     await new Promise((r) => b2.once('disconnected', r));
-    assert.equal(ihdr(await e.pngWhatsapp(normal)).w, 1080);
+    assert.deepEqual(ihdr(await e.pngWhatsapp(normal)), { w: 1080, h: 1527 });
     assert.notEqual(await e._browser(), b2);
   } finally {
     await e.close();

@@ -67,10 +67,10 @@ test('classificarErro: mapeia status/mensagem para a ação da interface', () =>
   assert.equal(lib.classificarErro(500, null).tipo, 'outro');
 });
 
-test('precisaConfirmarCorte: só pdf/png-email com indicador no limite', () => {
+test('precisaConfirmarCorte: pdf, png-email e png-whatsapp (todos A4) com indicador no limite', () => {
   assert.equal(lib.precisaConfirmarCorte('pdf', 'limite'), true);
   assert.equal(lib.precisaConfirmarCorte('png-email', 'limite'), true);
-  assert.equal(lib.precisaConfirmarCorte('png-whatsapp', 'limite'), false);
+  assert.equal(lib.precisaConfirmarCorte('png-whatsapp', 'limite'), true);
   assert.equal(lib.precisaConfirmarCorte('pdf', '90'), false);
 });
 

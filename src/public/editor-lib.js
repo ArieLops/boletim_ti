@@ -116,7 +116,7 @@
     return { token: gerarToken(), payload: null, reenvio: false };
   }
 
-  const precisaConfirmarCorte = (tipo, ajuste) => ajuste === 'limite' && (tipo === 'pdf' || tipo === 'png-email');
+  const precisaConfirmarCorte = (tipo, ajuste) => ajuste === 'limite' && (tipo === 'pdf' || tipo === 'png-email' || tipo === 'png-whatsapp');
 
   function nomeArquivo(contentDisposition, padrao) {
     const m = /filename="?([^";]+)"?/i.exec(contentDisposition || '');

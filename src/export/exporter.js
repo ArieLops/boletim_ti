@@ -7,8 +7,7 @@ const PX_POR_MM = 96 / 25.4;
 const A4_PX = { largura: 794, altura: 1123 }; // A4 a 96 dpi
 const A4_LARGURA_CSS = 210 * PX_POR_MM; // 793,7007874 px
 const EMAIL_PX = { largura: 1240, altura: 1754 }; // A4 a 150 dpi
-const WHATSAPP_LARGURA = 1080;
-const WHATSAPP_ALTURA_MAX = 4000;
+const WHATSAPP_PX = { largura: 1080, altura: 1527 }; // folha A4 (210x297) em 1080 de largura
 const TIMEOUT_PADRAO_MS = 30000;
 const LIMITE_CURTO_MS = 5000; // newPage / page.close
 
@@ -193,11 +192,34 @@ function createExporter({ renderHtml, piso = 0.75, hooks = {}, timeoutMs = TIMEO
     return fit;
   }
 
-  async function medirWhatsapp(page, input) {
-    await page.setViewport({ width: WHATSAPP_LARGURA, height: 800, deviceScaleFactor: 1 });
-    await carregar(page, renderHtml({ ...input, mode: 'strip', scale: 1 }));
-    const altura = await page.evaluate(() => Math.ceil(document.querySelector('.pagina').getBoundingClientRect().height));
-    return { largura: WHATSAPP_LARGURA, altura, muitoAlta: altura > WHATSAPP_ALTURA_MAX };
+  // PNG da folha A4 inteira em `dim` (largura x altura): viewport exato com dsf 1 e o conteudo ampliado por CSS zoom
+  // (largura / 210mm em px). Serve ao PNG de e-mail (1240x1754) e ao do WhatsApp (1080x1527).
+  async function pngA4(page, input, opts, dim, rotulo) {
+    await paginaA4(page, input, pisoDe(opts));
+    await page.setViewport({ width: dim.largura, height: dim.altura, deviceScaleFactor: 1 });
+    const medidas = await page.evaluate(async (fator) => {
+      document.documentElement.style.zoom = String(fator);
+      await document.fonts.ready;
+      await new Promise((r) => requestAnimationFrame(() => r()));
+      const pag = document.querySelector('.pagina').getBoundingClientRect();
+      const rod = document.querySelector('.rodape').getBoundingClientRect();
+      return {
+        larguraPagina: pag.width,
+        rodapeTopo: rod.top,
+        scrollX: document.documentElement.scrollWidth,
+        largJanela: window.innerWidth,
+        altJanela: window.innerHeight,
+      };
+    }, dim.largura / A4_LARGURA_CSS);
+    if (Math.abs(medidas.larguraPagina - dim.largura) > 1 || medidas.scrollX > medidas.largJanela || medidas.rodapeTopo < medidas.altJanela * 0.8) {
+      throw new Error(`Layout do PNG de ${rotulo} fora do esperado: ${JSON.stringify(medidas)}`);
+    }
+    const buf = Buffer.from(await page.screenshot({ type: 'png' }));
+    const { largura, altura } = ihdrPng(buf);
+    if (largura !== dim.largura || altura !== dim.altura) {
+      throw new Error(`PNG de ${rotulo} com tamanho inesperado: ${largura}x${altura}`);
+    }
+    return buf;
   }
 
   return {
@@ -211,42 +233,9 @@ function createExporter({ renderHtml, piso = 0.75, hooks = {}, timeoutMs = TIMEO
       return Buffer.from(await page.pdf({ printBackground: true, preferCSSPageSize: false, width: '210mm', height: '297mm', margin: { top: 0, right: 0, bottom: 0, left: 0 } }));
     }),
 
-    // Exato por construcao: viewport 1240x1754 com dsf 1 e o conteudo ampliado por CSS zoom (1240 / 210mm em px).
-    pngEmail: (input, opts) => enfileirar(async (page) => {
-      await paginaA4(page, input, pisoDe(opts));
-      await page.setViewport({ width: EMAIL_PX.largura, height: EMAIL_PX.altura, deviceScaleFactor: 1 });
-      const medidas = await page.evaluate(async (fator) => {
-        document.documentElement.style.zoom = String(fator);
-        await document.fonts.ready;
-        await new Promise((r) => requestAnimationFrame(() => r()));
-        const pag = document.querySelector('.pagina').getBoundingClientRect();
-        const rod = document.querySelector('.rodape').getBoundingClientRect();
-        return {
-          larguraPagina: pag.width,
-          rodapeTopo: rod.top,
-          scrollX: document.documentElement.scrollWidth,
-          largJanela: window.innerWidth,
-          altJanela: window.innerHeight,
-        };
-      }, EMAIL_PX.largura / A4_LARGURA_CSS);
-      if (Math.abs(medidas.larguraPagina - EMAIL_PX.largura) > 1 || medidas.scrollX > medidas.largJanela || medidas.rodapeTopo < medidas.altJanela * 0.8) {
-        throw new Error(`Layout do PNG de e-mail fora do esperado: ${JSON.stringify(medidas)}`);
-      }
-      const buf = Buffer.from(await page.screenshot({ type: 'png' }));
-      const { largura, altura } = ihdrPng(buf);
-      if (largura !== EMAIL_PX.largura || altura !== EMAIL_PX.altura) {
-        throw new Error(`PNG de e-mail com tamanho inesperado: ${largura}x${altura}`);
-      }
-      return buf;
-    }),
+    pngEmail: (input, opts) => enfileirar((page) => pngA4(page, input, opts, EMAIL_PX, 'e-mail')),
 
-    whatsappInfo: (input) => enfileirar((page) => medirWhatsapp(page, input)),
-
-    pngWhatsapp: (input) => enfileirar(async (page) => {
-      const { altura } = await medirWhatsapp(page, input);
-      await page.setViewport({ width: WHATSAPP_LARGURA, height: Math.max(altura, 1), deviceScaleFactor: 1 });
-      return Buffer.from(await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: WHATSAPP_LARGURA, height: altura } }));
-    }),
+    pngWhatsapp: (input, opts) => enfileirar((page) => pngA4(page, input, opts, WHATSAPP_PX, 'WhatsApp')),
 
     // Apoio a testes: navegador atual (ou null) e numero de paginas abertas nele.
     _browser: () => browserPromise,

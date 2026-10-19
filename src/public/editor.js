@@ -416,9 +416,7 @@
         if (r.ok) {
           const nome = L.nomeArquivo(r.headers.get('Content-Disposition'), 'comunicado-' + raiz.dataset.numero);
           salvarBlob(await r.blob(), nome);
-          aviso(r.headers.get('X-Aviso')
-            ? 'A imagem ficou muito alta; o WhatsApp pode comprimir.'
-            : 'Arquivo gerado: ' + nome, r.headers.get('X-Aviso') ? 'info' : 'ok');
+          aviso('Arquivo gerado: ' + nome, 'ok');
           return;
         }
         let corpo = null;
