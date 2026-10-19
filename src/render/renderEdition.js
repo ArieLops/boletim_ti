@@ -77,9 +77,9 @@ function corpoHtml(blocos) {
   return out;
 }
 
-function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, mode = 'a4', scale = 1, preview = false } = {}) {
+function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, mode = 'a4', scale = 1, preview = false, barraHtml = '' } = {}) {
   const escala = Number.isFinite(scale) && scale > 0 ? scale : 1;
-  const modo = mode === 'strip' ? 'strip' : 'a4';
+  const modo = mode === 'strip' || mode === 'web' ? mode : 'a4';
   const cfg = settings || {};
   const rodape = cfg.rodape || 'TI SENAR-RS';
   const email = cfg.emailTi || 'informatica@senar-rs.com.br';
@@ -89,7 +89,7 @@ function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, m
   const css = buildCss({ mode: modo, escala, cores: cfg.cores });
   return `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(edicao.titulo || 'Comunicado semanal')}</title><style>${css}</style></head>
-<body><div class="pagina"><div id="conteudo" data-conteudo>
+<body>${modo === 'web' ? String(barraHtml || '') : ''}<div class="pagina"><div id="conteudo" data-conteudo>
 <header class="cabecalho"><div class="topo-barra"></div><div class="barras"><i></i><i></i><i></i><i></i><i></i></div><div class="marca"><div class="senar">SENAR</div><div class="rgs">RIO GRANDE DO SUL</div></div><div class="nome">Comunicado semanal</div><div class="logo"><img src="${logoUri(logo)}" alt="SENAR"></div></header>
 <div class="linha-edicao">${esc(linhaEdicao(edicao))}</div>
 <main class="corpo"><div class="titulo-secao"><h1>${txt(edicao.titulo)}</h1>${subtitulo ? `<p>${txt(subtitulo)}</p>` : ''}</div>${corpoHtml(lista)}${vazio}</main>
@@ -97,4 +97,4 @@ function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, m
 </div></div></body></html>`;
 }
 
-module.exports = { renderEdition };
+module.exports = { renderEdition, esc };

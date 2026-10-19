@@ -10,6 +10,8 @@ const { editionsRoutes } = require('./routes/editions');
 const { exportsRoutes } = require('./routes/exports');
 const { settingsRoutes } = require('./routes/settings');
 const { screensRoutes } = require('./routes/screens');
+const { publicRoutes } = require('./routes/public');
+const { createThrottle } = require('./auth/throttle');
 const { makeEditionsRepo } = require('./repos/editions');
 const { makeHistoryRepo } = require('./repos/history');
 const { makeFilesRepo } = require('./repos/files');
@@ -17,7 +19,7 @@ const { makeSettingsRepo } = require('./repos/settings');
 const { normalizeBasePath, makeUrl } = require('./base-path');
 
 // Opções ausentes caem em `config` (que valida o .env); testes passam tudo explicitamente.
-function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, basePath } = {}) {
+function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, basePath, publicThrottle } = {}) {
   const needsConfig = cookieSecure === undefined || sessionSecret === undefined || sessionHours === undefined;
   const cfg = needsConfig ? require('./config').config : {};
   const secure = cookieSecure ?? cfg.cookieSecure;
@@ -48,6 +50,8 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, 
   app.locals.history = makeHistoryRepo(pool);
   app.locals.files = makeFilesRepo(pool);
   app.locals.settings = makeSettingsRepo(pool);
+  // Limite de falhas por IP nas rotas públicas /p/<token> (30 falhas em 10 min); substituível em testes.
+  app.locals.publicThrottle = publicThrottle || createThrottle({ max: 30, janelaMs: 10 * 60 * 1000 });
   // O store arma um setInterval ao ficar pronto; fechar antes disso deixaria o timer vivo (processo não sai).
   app.locals.close = async () => {
     let timer;
@@ -70,6 +74,17 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, 
   };
   app.get('/saude', saude);
   if (base) app.get(base + '/saude', saude);
+
+  // Rotas públicas (/p/<token>): Router próprio ANTES do Router com sessão, para que nunca passem por
+  // session/csrf/loadUser (nenhum cookie, nenhuma linha em `sessions`). O que não casar cai no fluxo normal.
+  const publico = express.Router({ caseSensitive: true });
+  publico.use((req, res, next) => {
+    res.locals.u = url;
+    res.locals.basePath = base;
+    next();
+  });
+  publico.use(publicRoutes());
+  app.use(base || '/', publico);
 
   // Tudo que exige sessão vive em um único Router, montado em base || '/'. Fora do prefixo nada disso
   // executa (nem a sessão): cai no 404 simples abaixo.

@@ -36,6 +36,17 @@ function makeEditionsRepo(pool) {
     return { edicao: rows[0], blocos: blocos.map(mapBloco) };
   }
 
+  // Busca pelo token do link público (igualdade exata; a coluna é ascii_bin, sensível à caixa).
+  // Rascunho (edição reaberta): devolve só o essencial e NÃO carrega os blocos — nada do rascunho vaza.
+  async function getByToken(token) {
+    const [rows] = await pool.query('SELECT * FROM edicoes WHERE token_publico = ?', [token]);
+    const e = rows[0];
+    if (!e) return null;
+    if (e.status !== 'publicada') return { edicao: { id: e.id, numero: e.numero, status: e.status }, blocos: [] };
+    const [blocos] = await pool.query('SELECT * FROM blocos WHERE edicao_id = ? ORDER BY ordem, id', [e.id]);
+    return { edicao: e, blocos: blocos.map(mapBloco) };
+  }
+
   async function listEditions() {
     const [rows] = await pool.query(
       `SELECT e.*, u.nome AS atualizado_por_nome
@@ -138,7 +149,7 @@ function makeEditionsRepo(pool) {
     await insertEvent(pool, id, userId, 'status_alterado', { status });
   }
 
-  return { nextNumber, createEdition, getEdition, listEditions, saveEdition, findRepeatedSave, setStatus };
+  return { nextNumber, createEdition, getEdition, getByToken, listEditions, saveEdition, findRepeatedSave, setStatus };
 }
 
 let defaultRepo;
@@ -156,6 +167,7 @@ module.exports = {
   nextNumber: lazy('nextNumber'),
   createEdition: lazy('createEdition'),
   getEdition: lazy('getEdition'),
+  getByToken: lazy('getByToken'),
   listEditions: lazy('listEditions'),
   saveEdition: lazy('saveEdition'),
   findRepeatedSave: lazy('findRepeatedSave'),

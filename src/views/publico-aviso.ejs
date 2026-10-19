@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title><%= titulo %> · SENAR RS</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{min-height:100vh;display:flex;flex-direction:column;background:#f5f8f5;color:#17342e;font-family:"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+.topo{background:#093d38;border-top:8px solid #48b65a;padding:20px 16px;color:#fff;}
+.topo strong{font-size:28px;font-weight:800;letter-spacing:.5px;}
+.topo span{margin-left:8px;font-size:14px;font-weight:700;color:#bfe6c4;}
+main{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;}
+.cartao{width:100%;max-width:520px;background:#fff;border:1px solid #d4e4db;border-radius:8px;padding:28px 24px;border-left:4px solid #48b65a;}
+h1{font-size:22px;line-height:1.25;color:#093d38;}
+p{margin-top:12px;font-size:16px;line-height:1.5;color:#526c66;overflow-wrap:anywhere;}
+</style>
+</head>
+<body>
+<header class="topo"><strong>SENAR</strong><span>RS</span></header>
+<main><section class="cartao" role="status">
+<h1><%= titulo %></h1>
+<p><%= mensagem %></p>
+</section></main>
+</body>
+</html>

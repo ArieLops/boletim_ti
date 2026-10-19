@@ -132,3 +132,58 @@ test('pilha de fontes: Inter primeiro e fontes de emoji coloridas como reserva',
   assert.ok(m[1].startsWith('Inter,'));
   assert.ok(m[1].endsWith('"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji"'), m[1]);
 });
+
+// ---- modo web (pagina publica /p/<token>) ----
+const BARRA = '<nav class="barra-publica"><a href="/x/y">Baixar</a></nav>';
+const webHtml = (extra = {}) => renderEdition({ edicao, blocos: cards(3), mode: 'web', ...extra });
+
+test('web: documento fluido, sem caixa A4 fixa nem overflow oculto na pagina', () => {
+  const html = webHtml();
+  const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+  assert.ok(html.startsWith('<!doctype html>'));
+  assert.ok(html.includes('name="viewport"'));
+  assert.ok(!css.includes('297mm') && !css.includes('210mm') && !css.includes('@page'));
+  assert.ok(!css.includes('1080px'));
+  assert.match(css, /\.pagina\{[^}]*max-width:960px/);
+  assert.match(css, /\.pagina\{[^}]*margin:0 auto/);
+  assert.ok(!/\.pagina\{[^}]*overflow:hidden/.test(css));
+  assert.ok(!/#conteudo\{[^}]*overflow:hidden/.test(css));
+});
+
+test('web: regra de coluna unica e cabecalho reduzido em tela estreita', () => {
+  const css = webHtml();
+  assert.match(css, /@media \(max-width:\s*640px\)\{[^@]*\.grade-cards\{grid-template-columns:1fr/);
+  assert.match(css, /@media \(max-width:\s*640px\)\{[^@]*\.cabecalho\{--escala:/);
+});
+
+test('web: mesma marcacao do comunicado e escape em todos os campos', () => {
+  const ruim = { etiqueta: HOSTIL, titulo: HOSTIL, texto: HOSTIL, chamada: HOSTIL };
+  const html = renderEdition({
+    edicao: { ...edicao, titulo: HOSTIL, subtitulo: HOSTIL },
+    blocos: [{ tipo: 'destaque', dados: ruim }, { tipo: 'card', dados: ruim }, { tipo: 'dica', dados: ruim }, { tipo: 'texto', dados: ruim }],
+    mode: 'web',
+    barraHtml: BARRA,
+  });
+  const corpo = bodyOf(html);
+  assert.ok(!corpo.includes('<script>alert') && !corpo.includes('<b>x</b>'));
+  assert.ok(html.includes('class="cabecalho"') && html.includes('class="rodape"'));
+  assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+  assert.match(html, /<title>&amp;&lt;b&gt;x/);
+});
+
+test('web: barraHtml entra logo apos <body>; nos modos a4 e strip e ignorado', () => {
+  assert.ok(webHtml({ barraHtml: BARRA }).includes(`<body>${BARRA}`));
+  assert.ok(!webHtml().includes('barra-publica"'));
+  for (const mode of ['a4', 'strip']) {
+    const html = renderEdition({ edicao, blocos: cards(2), mode, barraHtml: BARRA });
+    assert.ok(!html.includes(BARRA), mode);
+    assert.equal(html, renderEdition({ edicao, blocos: cards(2), mode }), mode);
+  }
+});
+
+test('web: a barra tem estilo proprio com foco visivel e --escala continua valido', () => {
+  const css = webHtml({ barraHtml: BARRA });
+  assert.match(css, /\.barra-publica a:focus-visible\{outline:/);
+  assert.ok(css.includes(':root{--escala:1;'));
+  assert.ok(renderEdition({ edicao, blocos: [], mode: 'web', scale: 0.8 }).includes('--escala:0.8;'));
+});

@@ -46,11 +46,38 @@ function rootVars(escala, cores) {
 const s = (n) => `calc(${n}px * var(--escala))`;
 const neg = (n) => `calc(${n}px * var(--escala) * -1)`;
 
+// Pagina publica (modo web): barra de downloads e ajustes de tela estreita. Sem JavaScript.
+const CSS_WEB = `.barra-publica{background:#fff;border-bottom:1px solid var(--borda);padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+.barra-publica a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border-radius:8px;background:var(--teal);color:#fff;font-size:14px;font-weight:600;line-height:1.2;text-align:center;text-decoration:none;}
+.barra-publica a:hover{background:var(--verde-escuro);}
+.barra-publica a:focus-visible{outline:3px solid var(--verde-escuro);outline-offset:2px;}
+@media print{.barra-publica{display:none;}}
+@media (max-width:640px){
+.cabecalho{--escala:.6;}
+.barra-publica{flex-direction:column;}
+.corpo{padding:20px 16px 8px;}
+.linha-edicao{padding:10px 16px 0;}
+.titulo-secao{padding-left:14px;margin-bottom:24px;}
+.grade-cards{grid-template-columns:1fr;gap:16px;}
+.bloco-destaque{padding:16px;}
+.bloco-destaque h2{margin:20px 0 0 0;}
+.bloco-destaque .texto{margin:16px 0 12px 0;padding-right:0;text-align:left;}
+.bloco-destaque .chamada{padding-left:0;}
+.bloco-card h3{padding-right:0;}
+.bloco-dica{padding:18px 18px 18px 22px;}
+.bloco-dica::before{left:14px;}
+.rodape{margin:0 16px;flex-wrap:wrap;}
+}
+`;
+
 function buildCss({ mode, escala, cores }) {
-  const a4 = mode !== 'strip';
-  const pagina = a4
-    ? 'width:210mm;height:297mm;overflow:hidden;position:relative;'
-    : 'width:1080px;';
+  const web = mode === 'web';
+  const a4 = mode === 'a4';
+  const pagina = web
+    ? 'max-width:960px;margin:0 auto;'
+    : a4
+      ? 'width:210mm;height:297mm;overflow:hidden;position:relative;'
+      : 'width:1080px;';
   // #conteudo: em A4 ocupa a altura da pagina (flex coluna, overflow hidden); como os filhos nao encolhem,
   // seu scrollHeight reflete a altura natural do conteudo quando excede a pagina (medido pelo exportador).
   const conteudo = a4
@@ -107,7 +134,7 @@ body{font-family:Inter,"Segoe UI",system-ui,sans-serif,"Noto Color Emoji","Apple
 .rodape{margin:0 ${s(48)};padding:${s(10)} ${s(8)} ${s(22)};border-top:1px solid var(--borda);display:flex;justify-content:space-between;gap:${s(16)};font-size:${s(10)};color:var(--texto-suave);}
 .rodape .esq{font-weight:600;}
 .rodape .dir{text-align:right;}
-`;
+${web ? CSS_WEB : ''}`;
 }
 
 module.exports = { buildCss, CORES_PADRAO, VAR_NOME, VAR_VALOR };
