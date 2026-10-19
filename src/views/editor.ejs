@@ -45,10 +45,22 @@
 
       <% if (!travado) { %>
       <div class="adicionar-bloco" role="group" aria-label="Adicionar bloco">
-        <span>Adicionar bloco:</span>
+        <span class="adicionar-titulo">Adicionar bloco: escolha o tipo</span>
+        <div class="tipos-grade">
         <% tiposBloco.forEach(function (t) { %>
-        <button type="button" class="btn btn-claro btn-pequeno" data-adicionar="<%= t.tipo %>">+ <%= t.rotulo %></button>
+        <button type="button" class="tipo-cartao" data-adicionar="<%= t.tipo %>" aria-label="Adicionar <%= t.rotulo %>: <%= t.descricao %>">
+          <span class="tipo-mini tipo-mini-<%= t.tipo %>" aria-hidden="true">
+            <% if (t.tipo === 'destaque') { %><span class="mini-cartao"><i class="mini-pilula"></i><i class="mini-titulo"></i><i class="mini-linha"></i><i class="mini-linha curta"></i></span>
+            <% } else if (t.tipo === 'card') { %><span class="mini-cartao"><i class="mini-pilula"></i><i class="mini-titulo"></i><i class="mini-linha curta"></i></span><span class="mini-cartao"><i class="mini-pilula"></i><i class="mini-titulo"></i><i class="mini-linha curta"></i></span>
+            <% } else if (t.tipo === 'dica') { %><span class="mini-faixa"><i class="mini-ponto"></i><span class="mini-linhas"><i class="mini-titulo"></i><i class="mini-linha"></i></span></span>
+            <% } else { %><span class="mini-livre"><i class="mini-titulo"></i><i class="mini-linha"></i><i class="mini-linha"></i><i class="mini-linha curta"></i></span>
+            <% } %>
+          </span>
+          <span class="tipo-nome"><%= t.rotulo %></span>
+          <span class="tipo-desc"><%= t.descricao %></span>
+        </button>
         <% }) %>
+        </div>
       </div>
       <% tiposBloco.forEach(function (t) { %>
       <template id="tpl-<%= t.tipo %>"><%- include('partials/bloco', { bloco: { tipo: t.tipo, dados: {} }, travado: false }) %></template>
