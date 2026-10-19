@@ -51,3 +51,17 @@ test('com prefixo: 404 e revisão não têm links internos; caixa do prefixo nã
   assert.ok(!n.text.includes('href='));
   assert.equal((await request(appPref).get(`/BOLETIM_TI/p/${token}`)).text, 'Não encontrado');
 });
+
+test('com prefixo: caminhos sob /p que não casam → 404 público, sem Set-Cookie e sem sessão nova', async () => {
+  const nSessoes = async () => Number((await ctx.pool.query('SELECT COUNT(*) AS n FROM sessions'))[0][0].n);
+  const antes = await nSessoes();
+  const base = await request(appPref).get(`${PREFIXO}/p/abc`);
+  for (const u of [`${PREFIXO}/p`, `${PREFIXO}/p/`, `${PREFIXO}/p/${token}/outro`, `${PREFIXO}/p/${token}/baixar`, `${PREFIXO}/p/${token}/baixar/pdf/x`]) {
+    const r = await request(appPref).get(u);
+    assert.equal(r.status, 404, u);
+    assert.equal(r.text, base.text, u);
+    assert.equal(r.headers['set-cookie'], undefined, u);
+    assert.equal(r.headers['cache-control'], 'no-store', u);
+  }
+  assert.equal(await nSessoes(), antes);
+});

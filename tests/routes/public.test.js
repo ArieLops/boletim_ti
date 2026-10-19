@@ -206,7 +206,7 @@ test('rotas autenticadas continuam exigindo login e a 404 geral permanece', asyn
   assert.equal(c.text, 'Não encontrado');
   const d = await request(app).get(`/p/${tokenA}/outro`);
   assert.equal(d.status, 404);
-  assert.equal(d.text, 'Não encontrado');
+  assert.equal(d.text, (await request(app).get('/p/abc')).text);
   const e = await request(app).post(`/p/${tokenA}`).send({});
   assert.ok([401, 403, 404].includes(e.status), String(e.status));
 });
@@ -261,4 +261,40 @@ test('o throttle padrão é de 30 falhas em 10 minutos e fica em app.locals.publ
   } finally {
     await padrao.locals.close();
   }
+});
+
+test('caminhos sob /p que não casam: mesma 404 pública, sem Set-Cookie e sem sessão nova', async () => {
+  const antes = await nSessoes();
+  const base = await request(app).get('/p/abc');
+  for (const u of ['/p', '/p/', `/p/${tokenA}/outro`, `/p/${tokenA}/baixar`, `/p/${tokenA}/baixar/`, `/p/${tokenA}/baixar/pdf/x`]) {
+    const r = await request(app).get(u);
+    assert.equal(r.status, 404, u);
+    assert.equal(r.text, base.text, u);
+    conferirCabecalhos(r, u);
+  }
+  const p = await request(app).post(`/p/${tokenA}`).send({});
+  assert.equal(p.status, 404);
+  assert.equal(p.headers['set-cookie'], undefined);
+  assert.equal(await nSessoes(), antes);
+});
+
+test('exceção sob /p: 500 público genérico, sem links para o sistema nem cookie', async () => {
+  const original = ctx.pool.query;
+  const erro = console.error;
+  const logs = [];
+  console.error = (...a) => logs.push(a);
+  ctx.pool.query = async () => { throw new Error('banco caiu'); };
+  let r;
+  try {
+    r = await request(app).get(`/p/${tokenA}`);
+  } finally {
+    ctx.pool.query = original;
+    console.error = erro;
+  }
+  assert.equal(r.status, 500);
+  assert.match(r.type, /html/);
+  conferirCabecalhos(r, '500');
+  assert.ok(!r.text.includes('href=') && !r.text.includes('app.css') && !r.text.includes('banco caiu'));
+  assert.match(r.text, /<meta name="robots" content="noindex">/);
+  assert.equal(logs.length, 1);
 });

@@ -81,11 +81,17 @@ function publicRoutes({ throttle } = {}) {
     res.send(f.conteudo);
   });
 
-  // Percent-encoding inválido no token (ex.: /p/%E0%A4%A): o Express falha com 400 antes do handler.
-  // Tratado como token malformado (mesma 404, conta como falha); outros erros seguem para o tratador geral.
+  // Qualquer outro caminho sob /p (/p, /p/, /p/<token>/outro, /p/<token>/baixar/pdf/x...): a mesma 404 pública,
+  // sem deixar o pedido cair no Router com sessão (que criaria cookie/sessão).
+  r.use('/p', (req, res) => semArquivo(res));
+
+  // Erros sob /p: percent-encoding inválido no token (400 do Express) vira a mesma 404 e conta como falha;
+  // qualquer outra exceção vira uma página pública genérica 500 (sem links para o sistema), sem cookie.
   r.use('/p', (err, req, res, next) => {
+    if (res.headersSent) return next(err);
     if (err && err.status === 400 && err instanceof URIError) return naoEncontrado(req, res);
-    next(err);
+    console.error('Falha na página pública:', err);
+    res.status(500).render('publico-aviso', { titulo: 'Algo deu errado', mensagem: 'Não foi possível abrir o comunicado agora. Tente novamente em instantes.' }, (e, html) => (e ? res.type('text').send('Erro interno') : res.send(html)));
   });
 
   return r;
