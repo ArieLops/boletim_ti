@@ -116,3 +116,27 @@ test('colisão do token (ER_DUP_ENTRY) tenta de novo com outro token', async () 
     tokenMod.novoToken = original;
   }
 });
+
+test('colisão em todas as 3 tentativas: publicação falha e nada fica para trás', async () => {
+  const idA = await nova();
+  const tA = (await edu.post(`/edicoes/${idA}/publicar`)).body.token;
+  const id = await nova();
+  const tokenMod = require('../../src/domain/token');
+  const original = tokenMod.novoToken;
+  let n = 0;
+  tokenMod.novoToken = () => { n++; return tA; };
+  const logs = console.error;
+  console.error = () => {};
+  try {
+    const r = await edu.post(`/edicoes/${id}/publicar`);
+    assert.ok(r.status >= 500, String(r.status));
+    assert.equal(n, 3);
+  } finally {
+    console.error = logs;
+    tokenMod.novoToken = original;
+  }
+  assert.equal((await ctx.pool.query('SELECT status FROM edicoes WHERE id = ?', [id]))[0][0].status, 'rascunho');
+  assert.equal(await tokenNoBanco(id), null);
+  assert.ok(!(await acoes(id)).includes('link_publico_criado'));
+  assert.equal(Number((await ctx.pool.query('SELECT COUNT(*) AS n FROM arquivos_publicados WHERE edicao_id = ?', [id]))[0][0].n), 0);
+});

@@ -59,3 +59,39 @@ test('token_publico: duplicado falha (ER_DUP_ENTRY) e vários NULL são aceitos'
   await ins(3, 'abc');
   await assert.rejects(ins(4, 'abc'), (e) => e.code === 'ER_DUP_ENTRY');
 });
+
+const collation = async (pool) => (await pool.query(
+  "SELECT CHARACTER_SET_NAME AS cs, COLLATION_NAME AS co FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'edicoes' AND COLUMN_NAME = 'token_publico'"
+))[0][0];
+
+test('token_publico é ascii_bin (sensível a maiúsculas/minúsculas)', async (t) => {
+  const pool = await resetTestDb();
+  t.after(() => pool.end());
+  const c = await collation(pool);
+  assert.equal(c.cs, 'ascii');
+  assert.equal(c.co, 'ascii_bin');
+});
+
+test('tokens que diferem só na caixa coexistem e a busca é exata', async (t) => {
+  const pool = await resetTestDb();
+  t.after(() => pool.end());
+  const ins = (n, tok) => pool.query("INSERT INTO edicoes (numero, mes_ano, titulo, token_publico) VALUES (?, '2026-10', 'x', ?)", [n, tok]);
+  await ins(1, 'AbCdEfGhIjKlMnOpQrStUv');
+  await ins(2, 'abcdefghijklmnopqrstuv');
+  const busca = async (tok) => (await pool.query('SELECT id FROM edicoes WHERE token_publico = ?', [tok]))[0];
+  assert.equal((await busca('ABCDEFGHIJKLMNOPQRSTUV')).length, 0);
+  assert.equal((await busca('AbCdEfGhIjKlMnOpQrStUv')).length, 1);
+});
+
+test('002 corrige banco que aplicou a versão antiga (collation padrão) e mantém o índice único', async (t) => {
+  const pool = await resetTestDb();
+  t.after(() => pool.end());
+  await pool.query('ALTER TABLE edicoes MODIFY COLUMN token_publico VARCHAR(32) NULL');
+  assert.notEqual((await collation(pool)).co, 'ascii_bin');
+  await pool.query('DELETE FROM schema_migrations WHERE nome = ?', ['002_link_publico.sql']);
+  assert.deepEqual(await migrate(pool), ['002_link_publico.sql']);
+  const c = await collation(pool);
+  assert.equal(c.co, 'ascii_bin');
+  assert.equal(c.cs, 'ascii');
+  assert.equal((await indices(pool)).length, 1);
+});
