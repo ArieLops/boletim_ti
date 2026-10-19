@@ -27,7 +27,7 @@ Instalação passo a passo no Ubuntu (Node, Chromium, banco, systemd, nginx, bac
 
 ## Link público
 
-Ao publicar uma edição pela primeira vez, o sistema gera um link público (`/p/<token>`, token aleatório de 22 caracteres) que mostra o comunicado e permite baixar PDF e imagens sem login. O editor exibe a faixa "Link público" com o endereço completo e o botão "Copiar link". O link é permanente por edição: ao reabrir, ele passa a mostrar o aviso "em revisão"; ao publicar de novo, volta a mostrar a edição, com o mesmo endereço. A criação do link fica registrada no histórico. Requer a migração `002_link_publico.sql` (aplicada automaticamente na subida).
+Ao publicar uma edição pela primeira vez, o sistema gera um link público (`/p/<token>`, token aleatório de 22 caracteres) que mostra o comunicado e permite baixar PDF e imagens sem login. O editor exibe a faixa "Link público" com o endereço completo e o botão "Copiar link". O link é permanente por edição: ao reabrir, ele passa a mostrar o aviso "em revisão"; ao publicar de novo, volta a mostrar a edição, com o mesmo endereço. A criação do link fica registrada no histórico. O link é uma chave de acesso: quem o tiver e alcançar o servidor abre o comunicado e baixa os arquivos sem login. O limite "só dentro do SENAR" depende da restrição de rede (`Require ip` no Apache; no caminho alternativo do nginx não há restrição, então restrinja a rede lá). Requer a migração `002_link_publico.sql` (aplicada automaticamente na subida).
 
 ## Rodar em subdiretório (BASE_PATH)
 
