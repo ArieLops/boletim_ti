@@ -28,7 +28,9 @@ test('sem blocos: cabecalho e rodape; "Edição vazia" so no preview', () => {
   const html = renderEdition({ edicao, blocos: [] });
   assert.ok(html.includes('TI SENAR-RS'));
   assert.ok(html.includes('informatica@senar-rs.com.br'));
-  assert.ok(html.includes('Comunicado semanal'));
+  // O cabeçalho não tem mais as barras verdes nem o texto "Comunicado semanal" (a logo já o traz).
+  assert.ok(!html.includes('class="barras"'));
+  assert.ok(!html.includes('class="nome"'));
   assert.ok(!html.includes('Edição vazia'));
   assert.ok(renderEdition({ edicao, blocos: [], preview: true }).includes('Edição vazia'));
 });
