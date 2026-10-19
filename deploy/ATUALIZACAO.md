@@ -85,6 +85,18 @@ sudo sh -c 'f=$(ls -t /root/backups-boletim/*.sql.gz | head -1); echo "$f"; gzip
 
 Esperado: `gzip -t` sem erro, tamanho maior que zero e `-- Dump completed on ...` nas últimas linhas. Se o dump falhar, pare.
 
+**Alternativa quando o `mysqldump` do host é negado** (ex.: `Access denied for user 'boletim_app'@'<ip-do-host>'`, porque o usuário do app só tem permissão vinda da rede docker, e não há outra conta administrativa à mão). O `scripts/backup-sql.js` gera um backup lógico (`.sql`, somente leitura, com `START TRANSACTION WITH CONSISTENT SNAPSHOT`) usando o próprio usuário do app, rodando num contêiner da rede docker; ele já vem no repositório (basta o `git pull`). As sessões (`sessions`) saem só com a estrutura. O backup só vale se terminar com `-- Backup completo`:
+
+```bash
+sudo mkdir -p /root/backups-boletim
+sudo docker run --rm --env-file /etc/boletim/boletim.env -e NODE_PATH=/app/node_modules \
+  -v /opt/boletim_ti/scripts/backup-sql.js:/tmp/backup-sql.js:ro boletim-senar:1.1 node /tmp/backup-sql.js \
+  | sudo sh -c 'gzip > /root/backups-boletim/boletim-$(date +%Y%m%d-%H%M%S).sql.gz'
+sudo sh -c 'f=$(ls -t /root/backups-boletim/*.sql.gz | head -1); ls -l "$f"; gzip -t "$f" && zcat "$f" | tail -n 2'
+```
+
+Para restaurar: `zcat arquivo.sql.gz | mysql <nome-do-banco>` com uma conta que tenha `CREATE`/`DROP`/`INSERT` (o arquivo recria as tabelas).
+
 **0.4 Conferir o schema** (a única verificação real; ver Princípios):
 
 ```bash
