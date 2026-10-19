@@ -93,9 +93,8 @@ body{font-family:Inter,"Segoe UI",system-ui,sans-serif,"Noto Color Emoji","Apple
 .bloco,.bloco *,.etiqueta,.chamada,.texto,.bloco h2,.bloco h3,.cabeca-grupo h2,.titulo-secao h1,.titulo-secao p,.cabecalho *,.rodape *,.linha-edicao{overflow-wrap:anywhere;}
 .cabecalho{position:relative;margin-top:${s(9)};height:${s(182)};background:var(--verde-escuro);}
 .topo-barra{position:absolute;top:${neg(9)};left:0;right:0;height:${s(9)};background:var(--verde-medio);}
-.marca{position:absolute;left:${s(56)};top:${s(57)};}
+.marca{position:absolute;left:${s(56)};top:${s(69)};}
 .marca .senar{font-size:${s(44)};font-weight:800;line-height:1;color:#fff;letter-spacing:${s(0.5)};}
-.marca .rgs{margin-top:${s(8)};font-size:${s(15)};font-weight:700;line-height:1;color:var(--verde-palido);letter-spacing:${s(0.3)};}
 .cabecalho .logo{position:absolute;right:${s(53)};top:${s(14)};width:${s(300)};height:${s(155)};}
 .cabecalho .logo img{display:block;width:100%;height:100%;object-fit:contain;}
 .linha-edicao{padding:${s(10)} ${s(56)} 0;font-size:${s(11)};font-weight:700;letter-spacing:${s(0.4)};color:var(--teal);text-transform:uppercase;white-space:pre-wrap;}
