@@ -33,6 +33,7 @@ function textoEvento(acao, detalhe) {
     case 'bloco_reordenado': return `reordenou o bloco${bloco}`;
     case 'bloco_removido': return `removeu o bloco${bloco}`;
     case 'publicada': return 'publicou a edição';
+    case 'link_publico_criado': return 'registrou: Link público criado';
     case 'reaberta': return 'reabriu a edição';
     case 'baixou': return `baixou ${ARQUIVOS[d.tipo] || 'um arquivo'}`;
     case 'status_alterado': return `alterou o status para ${d.status || '?'}`;

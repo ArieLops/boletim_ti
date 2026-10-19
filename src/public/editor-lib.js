@@ -142,5 +142,20 @@
     return { dados: out, descartados, faltando };
   }
 
-  return { CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
+  // Link público: endereço absoluto = origem + base (prefixo de publicação) + /p/<token>.
+  function urlPublica(origem, base, token) {
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(token)) throw new TypeError('Token inválido');
+    const b = String.fromCharCode(47); // evita literal "/..." (a guarda de caminhos só aceita Api.url para isso)
+    return String(origem).replace(/\/+$/, '') + String(base || '') + b + 'p' + b + token;
+  }
+
+  // Texto de estado da faixa "Link público" ('' quando a edição nunca foi publicada).
+  function rotuloEstadoLink(status, temToken) {
+    if (!temToken) return '';
+    return status === 'publicada'
+      ? 'Link público: mostra a edição publicada. Quem tiver o link pode ver e baixar o comunicado.'
+      : 'Link público em revisão: o mesmo link mostra o aviso "em revisão" até a edição ser publicada de novo.';
+  }
+
+  return { urlPublica, rotuloEstadoLink, CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
 });

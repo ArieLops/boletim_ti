@@ -245,3 +245,12 @@ label.cor input[type="text"] { width: 140px; }
 .bloco-tipo:focus { outline: none; border-color: var(--teal); box-shadow: var(--foco); }
 .bloco-tipo:disabled { background: #eef3ef; color: var(--texto-suave); }
 @media (max-width: 700px) { .tipos-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- link público (faixa do editor) ---------- */
+.link-publico { margin: 0 0 1rem; padding: 0.9rem 1.25rem; }
+.link-publico h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+#link-publico-estado { margin: 0 0 0.6rem; }
+.link-publico-linha { display: flex; gap: 0.6rem; align-items: stretch; flex-wrap: wrap; }
+.link-publico-linha input { flex: 1 1 18rem; min-width: 0; font: inherit; min-height: 40px; padding: 0.4rem 0.6rem; border: 1px solid #9db5ab; border-radius: 6px; background: var(--fundo); color: var(--texto); }
+.link-publico-linha input:focus { outline: none; border-color: var(--teal); box-shadow: var(--foco); }
+.link-publico-msg { display: block; min-height: 1.3rem; margin-top: 0.35rem; font-size: 0.9rem; color: var(--verde-escuro); font-weight: 600; }

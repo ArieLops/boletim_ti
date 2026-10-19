@@ -2,6 +2,7 @@
 const express = require('express');
 const { requireLogin, requireAdmin } = require('../auth/middleware');
 const { CORES_PADRAO } = require('../render/styles');
+const { rotuloEstadoLink } = require('../public/editor-lib');
 const { mesAnoExtenso, dataHora, numeroFmt, textoEvento } = require('./format');
 
 const TIPOS_BLOCO = [
@@ -42,6 +43,7 @@ async function carregar(req, res, next) {
 function screensRoutes() {
   const r = express.Router();
   const auxiliares = { mesAnoExtenso, dataHora, numeroFmt };
+  const auxEditor = { ...auxiliares, rotuloEstadoLink };
 
   r.get('/', requireLogin, async (req, res) => {
     const edicoes = await req.app.locals.editions.listEditions();
@@ -59,7 +61,7 @@ function screensRoutes() {
   r.get('/edicoes/:id', requireLogin, carregar, (req, res) => {
     const { edicao, blocos } = req.dados;
     res.render('editor', {
-      ...auxiliares, ativo: 'edicoes', edicao, blocos, travado: edicao.status === 'publicada',
+      ...auxEditor, ativo: 'edicoes', edicao, blocos, travado: edicao.status === 'publicada',
       tiposBloco: TIPOS_BLOCO, camposBloco: CAMPOS_BLOCO,
     });
   });

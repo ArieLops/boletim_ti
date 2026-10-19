@@ -25,6 +25,10 @@ npm run dev    # http://localhost:3100, banco descartável boletim_dev (veja scr
 
 Instalação passo a passo no Ubuntu (Node, Chromium, banco, systemd, nginx, backup): **[deploy/INSTALL.md](deploy/INSTALL.md)**. Para validar o Chromium no servidor: `node --env-file=/etc/boletim/boletim.env scripts/smoke-export.js /tmp/smoke`.
 
+## Link público
+
+Ao publicar uma edição pela primeira vez, o sistema gera um link público (`/p/<token>`, token aleatório de 22 caracteres) que mostra o comunicado e permite baixar PDF e imagens sem login. O editor exibe a faixa "Link público" com o endereço completo e o botão "Copiar link". O link é permanente por edição: ao reabrir, ele passa a mostrar o aviso "em revisão"; ao publicar de novo, volta a mostrar a edição, com o mesmo endereço. A criação do link fica registrada no histórico. Requer a migração `002_link_publico.sql` (aplicada automaticamente na subida).
+
 ## Rodar em subdiretório (BASE_PATH)
 
 O aplicativo pode ser publicado sob um prefixo (por exemplo `http://192.168.10.161/boletim_ti/`) atrás de um proxy reverso que **mantém** o prefixo ao repassar. Com `BASE_PATH=/boletim_ti`, todas as rotas, estáticos, redirecionamentos e o cookie de sessão (`boletim.sid`, `Path=/boletim_ti`) ficam sob o prefixo; fora dele o app responde 404, exceto `GET /saude`, que existe na raiz e sob o prefixo.

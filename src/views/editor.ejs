@@ -24,6 +24,18 @@
     <p id="aviso-geral" class="aviso" role="alert" hidden></p>
   </div>
 
+  <% if (edicao.token_publico) { %>
+  <section id="link-publico" class="link-publico cartao" data-token="<%= edicao.token_publico %>" aria-labelledby="link-publico-titulo">
+    <h2 id="link-publico-titulo">Link público</h2>
+    <p id="link-publico-estado" class="suave"><%= rotuloEstadoLink(travado ? 'publicada' : 'rascunho', true) %></p>
+    <div class="link-publico-linha">
+      <input id="link-publico-url" type="text" readonly value="<%= u('/p/' + edicao.token_publico) %>" aria-label="Endereço do link público">
+      <button type="button" class="btn btn-claro" id="btn-copiar-link">Copiar link</button>
+    </div>
+    <span id="link-publico-msg" class="link-publico-msg" role="status" aria-live="polite"></span>
+  </section>
+  <% } %>
+
   <div class="colunas">
     <section class="coluna-form" aria-label="Conteúdo da edição">
       <form id="form-edicao" class="cartao formulario" onsubmit="return false">

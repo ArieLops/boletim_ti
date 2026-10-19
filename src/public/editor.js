@@ -438,6 +438,7 @@
         const r = await Api.json('POST', '/edicoes/' + ID + '/publicar', confirmar ? { confirmar: 1 } : {});
         if (r.ok) {
           travarInterface();
+          mostrarLinkPublico(r.corpo && r.corpo.token, 'publicada');
           aviso('Publicada. Os arquivos foram gerados e guardados.', 'ok');
           return;
         }
@@ -469,6 +470,78 @@
   }
   $('btn-publicar').addEventListener('click', publicar);
   $('btn-reabrir').addEventListener('click', reabrir);
+
+  // ---------- link público ----------
+  function criarFaixaLink() {
+    const faixa = document.createElement('section');
+    faixa.id = 'link-publico';
+    faixa.className = 'link-publico cartao';
+    faixa.setAttribute('aria-labelledby', 'link-publico-titulo');
+    const h = document.createElement('h2');
+    h.id = 'link-publico-titulo';
+    h.textContent = 'Link público';
+    const estadoLink = document.createElement('p');
+    estadoLink.id = 'link-publico-estado';
+    estadoLink.className = 'suave';
+    const linha = document.createElement('div');
+    linha.className = 'link-publico-linha';
+    const campo = document.createElement('input');
+    campo.id = 'link-publico-url';
+    campo.type = 'text';
+    campo.readOnly = true;
+    campo.setAttribute('aria-label', 'Endereço do link público');
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.id = 'btn-copiar-link';
+    botao.className = 'btn btn-claro';
+    botao.textContent = 'Copiar link';
+    linha.append(campo, botao);
+    const msg = document.createElement('span');
+    msg.id = 'link-publico-msg';
+    msg.className = 'link-publico-msg';
+    msg.setAttribute('role', 'status');
+    msg.setAttribute('aria-live', 'polite');
+    faixa.append(h, estadoLink, linha, msg);
+    raiz.insertBefore(faixa, raiz.querySelector('.colunas'));
+    return faixa;
+  }
+
+  // Mostra/atualiza a faixa: cria se ainda não existe (1ª publicação sem recarregar).
+  function mostrarLinkPublico(token, status) {
+    if (typeof token !== 'string') return;
+    let url;
+    try { url = L.urlPublica(window.location.origin, Api.base, token); } catch (e) { return; }
+    const faixa = $('link-publico') || criarFaixaLink();
+    faixa.dataset.token = token;
+    $('link-publico-url').value = url;
+    $('link-publico-estado').textContent = L.rotuloEstadoLink(status, true);
+  }
+
+  async function copiarLink() {
+    const campo = $('link-publico-url');
+    const msg = $('link-publico-msg');
+    let ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(campo.value); ok = true; }
+    } catch (e) { ok = false; }
+    if (!ok) {
+      campo.focus();
+      campo.select();
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    }
+    msg.textContent = '';
+    // Reatribui no próximo ciclo para a região aria-live anunciar de novo.
+    setTimeout(() => { msg.textContent = ok ? 'Link copiado' : 'Não foi possível copiar: selecione o campo e copie manualmente.'; }, 30);
+  }
+
+  // Delegação: a faixa pode ser criada depois (1ª publicação).
+  raiz.addEventListener('click', (e) => {
+    if (e.target.closest('#btn-copiar-link')) copiarLink();
+  });
+  (function iniciarLinkPublico() {
+    const faixa = $('link-publico');
+    if (faixa) mostrarLinkPublico(faixa.dataset.token, travado ? 'publicada' : 'rascunho');
+  })();
 
   // ---------- início ----------
   atualizarPosicoes();
