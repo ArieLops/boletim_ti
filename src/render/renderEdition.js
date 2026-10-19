@@ -90,7 +90,7 @@ function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, m
   return `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(edicao.titulo || 'Comunicado semanal')}</title><style>${css}</style></head>
 <body>${modo === 'web' ? String(barraHtml || '') : ''}<div class="pagina"><div id="conteudo" data-conteudo>
-<header class="cabecalho"><div class="topo-barra"></div><div class="barras"><i></i><i></i><i></i><i></i><i></i></div><div class="marca"><div class="senar">SENAR</div><div class="rgs">RIO GRANDE DO SUL</div></div><div class="nome">Comunicado semanal</div><div class="logo"><img src="${logoUri(logo)}" alt="SENAR"></div></header>
+<header class="cabecalho"><div class="topo-barra"></div><div class="marca"><div class="senar">SENAR</div><div class="rgs">RIO GRANDE DO SUL</div></div><div class="logo"><img src="${logoUri(logo)}" alt="SENAR"></div></header>
 <div class="linha-edicao">${esc(linhaEdicao(edicao))}</div>
 <main class="corpo"><div class="titulo-secao"><h1>${txt(edicao.titulo)}</h1>${subtitulo ? `<p>${txt(subtitulo)}</p>` : ''}</div>${corpoHtml(lista)}${vazio}</main>
 <footer class="rodape"><span class="esq">${esc(rodape)}</span><span class="dir">${esc(email)}</span></footer>
