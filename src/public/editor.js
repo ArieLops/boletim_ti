@@ -103,8 +103,8 @@
     marcarSujo();
   }
 
-  function remover(li) {
-    if (!window.confirm('Remover este bloco?')) return;
+  async function remover(li) {
+    if (!(await perguntar('Remover este bloco?', 'Remover'))) return;
     const lis = itens();
     const vizinho = lis[lis.indexOf(li) + 1] || lis[lis.indexOf(li) - 1];
     li.remove();
@@ -141,7 +141,7 @@
   // ---------- tipo do bloco ----------
   // Troca o tipo mantendo o data-id (o servidor atualiza a mesma linha). A regra de quais campos
   // sobram/são descartados/faltam é L.trocarTipo (pura, testada em tests/public/editor-tipos.test.js).
-  function trocarTipoBloco(sel) {
+  async function trocarTipoBloco(sel) {
     const li = sel.closest('.bloco-item');
     const antigo = li.dataset.tipo;
     const novo = sel.value;
@@ -150,7 +150,7 @@
     if (!tpl) { sel.value = antigo; return; }
     const r = L.trocarTipo(lerBloco(li).dados, novo);
     const rotulo = sel.options[sel.selectedIndex].textContent.trim();
-    if (r.descartados.length && !window.confirm('Trocar para ' + rotulo + ' vai descartar: ' + L.listaCampos(r.descartados) + '. Continuar?')) {
+    if (r.descartados.length && !(await perguntar('Trocar para ' + rotulo + ' vai descartar: ' + L.listaCampos(r.descartados) + '. Continuar?', 'Trocar'))) {
       sel.value = antigo;
       return;
     }
@@ -366,6 +366,37 @@
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
+  // Confirmação dentro da página: o window.confirm do navegador pode ser bloqueado ou suprimido em silêncio
+  // (e então a ação nunca acontece). Resolve true só ao apertar o botão de confirmar; Esc/Cancelar = false.
+  function perguntar(texto, rotuloOk) {
+    return new Promise((resolve) => {
+      const d = document.createElement('dialog');
+      d.className = 'dialogo-confirmar';
+      d.setAttribute('aria-label', 'Confirmação');
+      const p = document.createElement('p');
+      p.textContent = texto;
+      const linha = document.createElement('div');
+      linha.className = 'dialogo-acoes';
+      const nao = document.createElement('button');
+      nao.type = 'button';
+      nao.className = 'btn btn-claro';
+      nao.textContent = 'Cancelar';
+      const sim = document.createElement('button');
+      sim.type = 'button';
+      sim.className = 'btn btn-primario';
+      sim.textContent = rotuloOk || 'Confirmar';
+      let resposta = false;
+      sim.addEventListener('click', () => { resposta = true; d.close(); });
+      nao.addEventListener('click', () => d.close());
+      d.addEventListener('close', () => { d.remove(); resolve(resposta); });
+      linha.append(nao, sim);
+      d.append(p, linha);
+      document.body.appendChild(d);
+      if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', '');
+      sim.focus();
+    });
+  }
+
   async function baixar(tipo) {
     if (ocupado) return;
     ocupar(true, 'Gerando arquivo…');
@@ -373,7 +404,7 @@
       if (!(await sincronizar())) return;
       let confirmar = false;
       if (!travado && L.precisaConfirmarCorte(tipo, ajusteAtual)) {
-        if (!window.confirm(L.textoCorte(faltaAtual) + '. Baixar mesmo assim?')) return ocupar(false), aviso('');
+        if (!(await perguntar(L.textoCorte(faltaAtual) + '. Baixar mesmo assim?', 'Baixar'))) return ocupar(false), aviso('');
         confirmar = true;
       }
       for (let tentativa = 0; tentativa < 2; tentativa++) {
@@ -393,7 +424,7 @@
         let corpo = null;
         try { corpo = await r.json(); } catch (e) { corpo = null; }
         const c = L.classificarErro(r.status, corpo);
-        if (c.tipo === 'cortado' && !confirmar && window.confirm(L.textoCorte(c.faltaMm) + '. Baixar mesmo assim?')) { confirmar = true; continue; }
+        if (c.tipo === 'cortado' && !confirmar && (await perguntar(L.textoCorte(c.faltaMm) + '. Baixar mesmo assim?', 'Baixar'))) { confirmar = true; continue; }
         return aviso(c.tipo === 'cortado' ? 'Download cancelado: o conteúdo seria cortado.' : c.mensagem, 'erro');
       }
     } catch (e) {
@@ -431,7 +462,7 @@
       const texto = limite
         ? L.textoCorte(faltaAtual) + ' na página A4. Publicar mesmo assim? A edição ficará travada.'
         : 'Publicar a edição ' + raiz.dataset.numero + '? Os arquivos serão gerados e a edição ficará travada.';
-      if (!window.confirm(texto)) return ocupar(false), aviso('');
+      if (!(await perguntar(texto, 'Publicar'))) return ocupar(false), aviso('');
       aviso('Publicando: gerando PDF e imagens…', 'info');
       let confirmar = limite;
       for (let tentativa = 0; tentativa < 2; tentativa++) {
@@ -443,7 +474,7 @@
           return;
         }
         const c = L.classificarErro(r.status, r.corpo);
-        if (c.tipo === 'cortado' && !confirmar && window.confirm(L.textoCorte(c.faltaMm) + '. Publicar mesmo assim?')) { confirmar = true; continue; }
+        if (c.tipo === 'cortado' && !confirmar && (await perguntar(L.textoCorte(c.faltaMm) + '. Publicar mesmo assim?', 'Publicar'))) { confirmar = true; continue; }
         if (c.tipo === 'conflito' || c.tipo === 'publicada') return aviso(c.mensagem + ' Recarregue a página.', 'erro');
         return aviso(c.tipo === 'cortado' ? 'Publicação cancelada: o conteúdo seria cortado.' : c.mensagem, 'erro');
       }
@@ -456,7 +487,7 @@
 
   async function reabrir() {
     if (ocupado) return;
-    if (!window.confirm('Reabrir a edição? Os arquivos publicados serão descartados e regerados na próxima publicação.')) return;
+    if (!(await perguntar('Reabrir a edição? Os arquivos publicados serão descartados e regerados na próxima publicação.', 'Reabrir'))) return;
     ocupar(true, 'Reabrindo…');
     try {
       const r = await Api.json('POST', '/edicoes/' + ID + '/reabrir', {});

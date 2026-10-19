@@ -254,3 +254,18 @@ label.cor input[type="text"] { width: 140px; }
 .link-publico-linha input { flex: 1 1 18rem; min-width: 0; font: inherit; min-height: 40px; padding: 0.4rem 0.6rem; border: 1px solid #9db5ab; border-radius: 6px; background: var(--fundo); color: var(--texto); }
 .link-publico-linha input:focus { outline: none; border-color: var(--teal); box-shadow: var(--foco); }
 .link-publico-msg { display: block; min-height: 1.3rem; margin-top: 0.35rem; font-size: 0.9rem; color: var(--verde-escuro); font-weight: 600; }
+
+/* ---------- confirmação dentro da página ---------- */
+.dialogo-confirmar {
+  max-width: 420px;
+  width: calc(100% - 32px);
+  padding: 20px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--card-fundo);
+  color: var(--texto);
+  box-shadow: 0 12px 40px rgba(9, 61, 56, 0.3);
+}
+.dialogo-confirmar::backdrop { background: rgba(9, 61, 56, 0.45); }
+.dialogo-confirmar p { margin: 0 0 18px; line-height: 1.45; }
+.dialogo-acoes { display: flex; justify-content: flex-end; gap: 10px; }
