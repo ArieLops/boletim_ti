@@ -20,11 +20,15 @@ function exportador(req) {
 }
 
 // Entrada do exportador/renderizador + opções por requisição (o piso vem das configurações vigentes).
+// Ids de imagem citados pelos blocos (inteiros positivos).
+const idsImagens = (blocos) => (blocos || []).map((b) => b.dados && b.dados.imagem).filter(Number.isInteger);
+
 async function contextoExport(req) {
   const { settings } = req.app.locals;
   const [cfg, logo] = await Promise.all([settings.getSettings(), settings.getLogo()]);
   const { edicao, blocos } = req.dados;
-  return { input: { edicao, blocos, settings: cfg, logo }, opts: { piso: cfg.pisoReducao }, settings: cfg };
+  const imagens = await req.app.locals.images.getMany(edicao.id, idsImagens(blocos));
+  return { input: { edicao, blocos, settings: cfg, logo, imagens }, opts: { piso: cfg.pisoReducao }, settings: cfg };
 }
 
 const numeroFmt = (n) => String(n).padStart(3, '0');
@@ -38,4 +42,4 @@ function trataExportador(res, err) {
   return false;
 }
 
-module.exports = { erro, carregarEdicao, exportador, contextoExport, numeroFmt, trataExportador, ExportUnavailableError };
+module.exports = { idsImagens, erro, carregarEdicao, exportador, contextoExport, numeroFmt, trataExportador, ExportUnavailableError };

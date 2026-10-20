@@ -196,3 +196,52 @@ test('web: a barra tem estilo proprio com foco visivel e --escala continua valid
   assert.ok(css.includes(':root{--escala:1;'));
   assert.ok(renderEdition({ edicao, blocos: [], mode: 'web', scale: 0.8 }).includes('--escala:0.8;'));
 });
+
+// ---- imagem opcional nos blocos ----
+const { buildCss } = require('../../src/render/styles');
+const PNG_B = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('imagem-de-teste-unica')]);
+const B64 = PNG_B.toString('base64');
+const mapa = { 7: { mime: 'image/png', buffer: PNG_B } };
+const comImg = (b) => ({ ...b, dados: { ...b.dados, imagem: 7 } });
+const todosTipos = [
+  { id: 1, tipo: 'destaque', ordem: 1, dados: { etiqueta: 'D', titulo: 'TD', texto: 'XD', chamada: 'CD' } },
+  { id: 2, tipo: 'card', ordem: 2, dados: { etiqueta: 'C', titulo: 'TC', texto: 'XC' } },
+  { id: 3, tipo: 'dica', ordem: 3, dados: { titulo: 'TI', texto: 'XI' } },
+  { id: 4, tipo: 'texto', ordem: 4, dados: { titulo: 'TT', texto: 'XT' } },
+];
+
+test('imagem: cada tipo de bloco leva a figura como primeiro filho, antes do texto', () => {
+  for (const b of todosTipos) {
+    const html = renderEdition({ edicao, blocos: [comImg(b)], imagens: mapa });
+    const fig = '<figure class="img-bloco"><img src="data:image/png;base64,' + B64 + '" alt=""></figure>';
+    assert.ok(html.includes(fig), b.tipo);
+    const re = /<(section|article) class="bloco [^"]*">(.*?)<\/(section|article)>/s.exec(html);
+    assert.ok(re[2].startsWith(fig), b.tipo + ' primeiro filho');
+  }
+});
+
+test('imagem: mime fora da lista, id ausente ou buffer invalido nao geram figura', () => {
+  for (const b of todosTipos) {
+    for (const imagens of [{ 7: { mime: 'image/svg+xml', buffer: PNG_B } }, { 7: { mime: 'image/gif', buffer: PNG_B } }, {}, { 8: mapa[7] }, { 7: { mime: 'image/png', buffer: 'x' } }]) {
+      assert.ok(!renderEdition({ edicao, blocos: [comImg(b)], imagens }).includes('<figure'), b.tipo);
+    }
+    assert.ok(!renderEdition({ edicao, blocos: [comImg(b)] }).includes('<figure'), b.tipo + ' sem mapa');
+  }
+});
+
+test('imagem: sem imagem o HTML dos blocos e identico ao render sem a chave', () => {
+  const a = renderEdition({ edicao, blocos: todosTipos });
+  assert.strictEqual(renderEdition({ edicao, blocos: todosTipos, imagens: {} }), a);
+  assert.strictEqual(renderEdition({ edicao, blocos: todosTipos, imagens: mapa }), a);
+  assert.ok(!a.includes('<figure'));
+});
+
+test('imagem: CSS da figura (35% a direita, limite de altura) e chamada do destaque com clear', () => {
+  for (const mode of ['a4', 'web', 'strip']) {
+    const css = buildCss({ mode, escala: 1 });
+    assert.match(css, /\.img-bloco\{float:right;width:35%;/);
+    assert.match(css, /\.img-bloco img\{[^}]*max-height:calc\(180px \* var\(--escala\)\);[^}]*object-fit:contain;[^}]*object-position:right top/);
+    assert.match(css, /\.bloco::after\{content:"";display:block;clear:both;\}/);
+    assert.match(css, /\.bloco-destaque \.chamada\{clear:both;/);
+  }
+});

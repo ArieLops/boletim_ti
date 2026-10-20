@@ -4,7 +4,7 @@
 const express = require('express');
 const { tokenValido } = require('../domain/token');
 const { renderEdition, esc } = require('../render/renderEdition');
-const { numeroFmt } = require('./common');
+const { numeroFmt, idsImagens } = require('./common');
 
 const CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'";
 const MSG_429 = 'Muitas tentativas. Aguarde alguns minutos.';
@@ -60,8 +60,9 @@ function publicRoutes({ throttle } = {}) {
     }
     const { settings } = req.app.locals;
     const [cfg, logo] = await Promise.all([settings.getSettings(), settings.getLogo()]);
+    const imagens = await req.app.locals.images.getMany(dados.edicao.id, idsImagens(dados.blocos));
     res.type('html').send(
-      renderEdition({ edicao: dados.edicao, blocos: dados.blocos, settings: cfg, logo, mode: 'web', barraHtml: barraHtml(res.locals.u, token) })
+      renderEdition({ edicao: dados.edicao, blocos: dados.blocos, settings: cfg, logo, imagens, mode: 'web', barraHtml: barraHtml(res.locals.u, token) })
     );
   });
 

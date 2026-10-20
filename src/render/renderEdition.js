@@ -9,6 +9,7 @@ const LOGO_PADRAO = {
 // Simbolo do SENAR (fixo, canto esquerdo do cabecalho). A logo da direita (conecta TI) e a padrao/configuravel acima.
 const LOGO_SENAR_URI = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, 'assets', 'logo-senar.png')).toString('base64')}`;
 const MIMES_LOGO = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+const MIMES_IMAGEM = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const MESES = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
 
 function esc(v) {
@@ -37,27 +38,36 @@ function logoUri(logo) {
   return `data:${l.mime};base64,${l.buffer.toString('base64')}`;
 }
 
-function blocoHtml(b) {
+// Figura opcional do bloco (primeiro filho). So para mimes da lista fixa e ids presentes no mapa.
+function figuraHtml(d, imagens) {
+  const img = d.imagem != null && imagens && Object.hasOwn(imagens, d.imagem) ? imagens[d.imagem] : null;
+  if (!img || !Buffer.isBuffer(img.buffer) || !MIMES_IMAGEM.has(img.mime)) return '';
+  return `<figure class="img-bloco"><img src="data:${img.mime};base64,${img.buffer.toString('base64')}" alt=""></figure>`;
+}
+
+function blocoHtml(b, imagens) {
   const d = b.dados || {};
+  const fig = figuraHtml(d, imagens);
   switch (b.tipo) {
     case 'destaque':
-      return `<section class="bloco bloco-destaque"><span class="etiqueta">${txt(d.etiqueta)}</span><h2>${txt(d.titulo)}</h2><p class="texto">${txt(d.texto)}</p><p class="chamada">${txt(d.chamada)}</p></section>`;
+      return `<section class="bloco bloco-destaque">${fig}<span class="etiqueta">${txt(d.etiqueta)}</span><h2>${txt(d.titulo)}</h2><p class="texto">${txt(d.texto)}</p><p class="chamada">${txt(d.chamada)}</p></section>`;
     case 'dica':
-      return `<section class="bloco bloco-dica"><h3>${txt(d.titulo)}</h3><p class="texto">${txt(d.texto)}</p></section>`;
+      return `<section class="bloco bloco-dica">${fig}<h3>${txt(d.titulo)}</h3><p class="texto">${txt(d.texto)}</p></section>`;
     case 'texto':
-      return `<section class="bloco bloco-texto"><h3>${txt(d.titulo)}</h3><p class="texto">${txt(d.texto)}</p></section>`;
+      return `<section class="bloco bloco-texto">${fig}<h3>${txt(d.titulo)}</h3><p class="texto">${txt(d.texto)}</p></section>`;
     default:
       return '';
   }
 }
 
-function cardHtml(b, impar) {
+function cardHtml(b, impar, imagens) {
   const d = b.dados || {};
-  return `<article class="bloco bloco-card${impar ? ' ultimo-impar' : ''}"><span class="etiqueta">${txt(d.etiqueta)}</span><h3>${txt(d.titulo)}</h3><p class="texto">${txt(d.texto)}</p></article>`;
+  const fig = figuraHtml(d, imagens);
+  return `<article class="bloco bloco-card${impar ? ' ultimo-impar' : ''}">${fig}<span class="etiqueta">${txt(d.etiqueta)}</span><h3>${txt(d.titulo)}</h3><p class="texto">${txt(d.texto)}</p></article>`;
 }
 
 // Cards consecutivos viram uma grade de 2 colunas; o titulo "Atualizações da semana" aparece antes do 1o grupo.
-function corpoHtml(blocos) {
+function corpoHtml(blocos, imagens) {
   let out = '';
   let primeiroGrupo = true;
   for (let i = 0; i < blocos.length; ) {
@@ -69,17 +79,17 @@ function corpoHtml(blocos) {
         out += '<div class="cabeca-grupo"><i></i><h2>Atualizações da semana</h2></div>';
         primeiroGrupo = false;
       }
-      out += `<div class="grade-cards">${grupo.map((c, k) => cardHtml(c, grupo.length % 2 === 1 && k === grupo.length - 1)).join('')}</div>`;
+      out += `<div class="grade-cards">${grupo.map((c, k) => cardHtml(c, grupo.length % 2 === 1 && k === grupo.length - 1, imagens)).join('')}</div>`;
       i = j;
     } else {
-      out += blocoHtml(blocos[i]);
+      out += blocoHtml(blocos[i], imagens);
       i++;
     }
   }
   return out;
 }
 
-function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, mode = 'a4', scale = 1, preview = false, barraHtml = '' } = {}) {
+function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, mode = 'a4', scale = 1, preview = false, barraHtml = '', imagens = {} } = {}) {
   const escala = Number.isFinite(scale) && scale > 0 ? scale : 1;
   const modo = mode === 'strip' || mode === 'web' ? mode : 'a4';
   const cfg = settings || {};
@@ -94,7 +104,7 @@ function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, m
 <body>${modo === 'web' ? String(barraHtml || '') : ''}<div class="pagina"><div id="conteudo" data-conteudo>
 <header class="cabecalho"><div class="topo-barra"></div><div class="logo-senar"><img src="${LOGO_SENAR_URI}" alt="SENAR"></div><div class="logo"><img src="${logoUri(logo)}" alt="SENAR"></div></header>
 <div class="linha-edicao">${esc(linhaEdicao(edicao))}</div>
-<main class="corpo"><div class="titulo-secao"><h1>${txt(edicao.titulo)}</h1>${subtitulo ? `<p>${txt(subtitulo)}</p>` : ''}</div>${corpoHtml(lista)}${vazio}</main>
+<main class="corpo"><div class="titulo-secao"><h1>${txt(edicao.titulo)}</h1>${subtitulo ? `<p>${txt(subtitulo)}</p>` : ''}</div>${corpoHtml(lista, imagens || {})}${vazio}</main>
 <footer class="rodape"><span class="esq">${esc(rodape)}</span><span class="dir">${esc(email)}</span></footer>
 </div></div></body></html>`;
 }
