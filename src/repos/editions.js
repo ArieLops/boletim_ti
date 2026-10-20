@@ -83,6 +83,17 @@ function makeEditionsRepo(pool) {
       const depois = validados.map((b) => ({ ...b, id: b.id != null && idsAntes.has(b.id) ? b.id : null }));
       const mantidos = new Set(depois.filter((b) => b.id != null).map((b) => b.id));
 
+      // Imagens: só valem as que pertencem a esta edição (as alheias são descartadas do bloco).
+      const citadas = [...new Set(depois.map((b) => b.dados.imagem).filter((n) => n != null))];
+      let proprias = new Set();
+      if (citadas.length) {
+        const [imgs] = await conn.query('SELECT id FROM imagens WHERE edicao_id = ? AND id IN (?)', [id, citadas]);
+        proprias = new Set(imgs.map((r) => r.id));
+      }
+      for (const b of depois) {
+        if (b.dados.imagem != null && !proprias.has(b.dados.imagem)) delete b.dados.imagem;
+      }
+
       const eventos = diffBlocks(antes, depois);
 
       const remover = antes.filter((b) => !mantidos.has(b.id)).map((b) => b.id);
@@ -98,6 +109,15 @@ function makeEditionsRepo(pool) {
         } else {
           await conn.query('INSERT INTO blocos (edicao_id, tipo, ordem, dados) VALUES (?, ?, ?, ?)', [id, b.tipo, i, dados]);
         }
+      }
+
+      // Órfãs (nenhum bloco as referencia) só são apagadas se tiverem mais de 1 hora: um envio recém-concluído
+      // não pode ser removido por um salvamento que já estava em andamento.
+      const usadas = [...new Set(depois.map((b) => b.dados.imagem).filter((n) => n != null))];
+      if (usadas.length) {
+        await conn.query('DELETE FROM imagens WHERE edicao_id = ? AND criado_em < NOW() - INTERVAL 1 HOUR AND id NOT IN (?)', [id, usadas]);
+      } else {
+        await conn.query('DELETE FROM imagens WHERE edicao_id = ? AND criado_em < NOW() - INTERVAL 1 HOUR', [id]);
       }
 
       const novaVersao = atual.versao + 1;

@@ -5,14 +5,14 @@ const { migrate } = require('../../src/db/migrate');
 
 const TABELAS = [
   'arquivos_publicados', 'blocos', 'configuracoes', 'edicoes',
-  'historico', 'logo', 'schema_migrations', 'usuarios',
+  'historico', 'imagens', 'logo', 'schema_migrations', 'usuarios',
 ];
 
-test('migrate aplica 001_init e 002 uma única vez e cria as 8 tabelas', async (t) => {
+test('migrate aplica 001_init, 002 e 003 uma única vez e cria as 9 tabelas', async (t) => {
   const pool = await resetTestDb({ migrate: false });
   t.after(() => pool.end());
 
-  assert.deepEqual(await migrate(pool), ['001_init.sql', '002_link_publico.sql']);
+  assert.deepEqual(await migrate(pool), ['001_init.sql', '002_link_publico.sql', '003_imagens.sql']);
   assert.deepEqual(await migrate(pool), []);
 
   const [rows] = await pool.query('SHOW TABLES');
@@ -35,5 +35,5 @@ test('duas execuções concorrentes de migrate não conflitam', async (t) => {
 
   const resultados = await Promise.all([migrate(pool), migrate(pool)]);
   const aplicadas = resultados.map((r) => r.length).sort();
-  assert.deepEqual(aplicadas, [0, 2]);
+  assert.deepEqual(aplicadas, [0, 3]);
 });

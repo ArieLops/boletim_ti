@@ -10,11 +10,13 @@ const { editionsRoutes } = require('./routes/editions');
 const { exportsRoutes } = require('./routes/exports');
 const { settingsRoutes } = require('./routes/settings');
 const { screensRoutes } = require('./routes/screens');
+const { imagesRoutes } = require('./routes/images');
 const { publicRoutes } = require('./routes/public');
 const { createThrottle } = require('./auth/throttle');
 const { makeEditionsRepo } = require('./repos/editions');
 const { makeHistoryRepo } = require('./repos/history');
 const { makeFilesRepo } = require('./repos/files');
+const { makeImagesRepo } = require('./repos/images');
 const { makeSettingsRepo } = require('./repos/settings');
 const { normalizeBasePath, makeUrl } = require('./base-path');
 
@@ -49,6 +51,7 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, 
   app.locals.editions = makeEditionsRepo(pool);
   app.locals.history = makeHistoryRepo(pool);
   app.locals.files = makeFilesRepo(pool);
+  app.locals.images = makeImagesRepo(pool);
   app.locals.settings = makeSettingsRepo(pool);
   // Limite de falhas por IP nas rotas públicas /p/<token> (30 falhas em 10 min); substituível em testes.
   app.locals.publicThrottle = publicThrottle || createThrottle({ max: 30, janelaMs: 10 * 60 * 1000 });
@@ -117,6 +120,7 @@ function createApp({ pool, exporter, cookieSecure, sessionSecret, sessionHours, 
   root.use(usersRoutes());
   root.use(editionsRoutes());
   root.use(exportsRoutes());
+  root.use(imagesRoutes());
   root.use(settingsRoutes());
   root.use(screensRoutes());
   app.use(base || '/', root);

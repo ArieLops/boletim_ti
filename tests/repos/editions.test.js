@@ -192,3 +192,57 @@ test('DELETE FROM edicoes (receita do INSTALL.md) remove blocos, histórico e ar
   for (const t of ['blocos', 'historico', 'arquivos_publicados']) assert.equal(await conta(t), 0, t);
   assert.equal(await ed.getEdition(id), null);
 });
+
+// --- imagens nos blocos (spec 3.4) ---
+const { makeImagesRepo } = require('../../src/repos/images');
+const PNG8 = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(8, 1)]);
+const blocoImg = (titulo, imagem) => ({ tipo: 'texto', dados: { titulo, texto: 'conteúdo', imagem } });
+const existe = async (id) => (await pool.query('SELECT 1 FROM imagens WHERE id = ?', [id]))[0].length === 1;
+
+test('saveEdition mantém imagem da própria edição e descarta a de outra edição', async () => {
+  const imgs = makeImagesRepo(pool);
+  const a = await nova(101);
+  const b = await nova(102);
+  const propria = await imgs.saveImage(a, { mime: 'image/png', buffer: PNG8 });
+  const alheia = await imgs.saveImage(b, { mime: 'image/png', buffer: PNG8 });
+  await ed.saveEdition(a, { versao: 1, blocos: [blocoImg('P', propria), blocoImg('A', alheia)] }, ana);
+  const r = await ed.getEdition(a);
+  assert.equal(r.blocos[0].dados.imagem, propria);
+  assert.equal('imagem' in r.blocos[1].dados, false);
+  assert.equal(await existe(alheia), true);
+});
+
+test('saveEdition: órfã recente é mantida; órfã com mais de 1 hora é apagada', async () => {
+  const imgs = makeImagesRepo(pool);
+  const a = await nova(103);
+  const recente = await imgs.saveImage(a, { mime: 'image/png', buffer: PNG8 });
+  const antiga = await imgs.saveImage(a, { mime: 'image/png', buffer: PNG8 });
+  await pool.query('UPDATE imagens SET criado_em = NOW() - INTERVAL 2 HOUR WHERE id = ?', [antiga]);
+  await ed.saveEdition(a, { versao: 1, blocos: [blocoImg('X', null)] }, ana);
+  assert.equal(await existe(recente), true);
+  assert.equal(await existe(antiga), false);
+});
+
+test('saveEdition: imagem referenciada nunca é apagada, mesmo antiga; remover o bloco a torna órfã', async () => {
+  const imgs = makeImagesRepo(pool);
+  const a = await nova(104);
+  const id = await imgs.saveImage(a, { mime: 'image/png', buffer: PNG8 });
+  await pool.query('UPDATE imagens SET criado_em = NOW() - INTERVAL 3 HOUR WHERE id = ?', [id]);
+  await ed.saveEdition(a, { versao: 1, blocos: [blocoImg('X', id)] }, ana);
+  assert.equal(await existe(id), true);
+  await ed.saveEdition(a, { versao: 2, blocos: [] }, ana);
+  assert.equal(await existe(id), false);
+});
+
+test('trocar o tipo do bloco mantém dados.imagem', async () => {
+  const imgs = makeImagesRepo(pool);
+  const a = await nova(105);
+  const id = await imgs.saveImage(a, { mime: 'image/png', buffer: PNG8 });
+  await ed.saveEdition(a, { versao: 1, blocos: [blocoImg('X', id)] }, ana);
+  const [b0] = (await ed.getEdition(a)).blocos;
+  await ed.saveEdition(a, { versao: 2, blocos: [{ id: b0.id, tipo: 'dica', dados: { titulo: 'X', texto: 'y', imagem: id } }] }, ana);
+  const [b1] = (await ed.getEdition(a)).blocos;
+  assert.equal(b1.tipo, 'dica');
+  assert.equal(b1.dados.imagem, id);
+  assert.equal(await existe(id), true);
+});

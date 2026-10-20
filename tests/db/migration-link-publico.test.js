@@ -11,10 +11,10 @@ const indices = async (pool) => (await pool.query(
   "SELECT INDEX_NAME, NON_UNIQUE, COLUMN_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'edicoes' AND INDEX_NAME = 'uq_edicoes_token_publico'"
 ))[0];
 
-test('migrate aplica 001 e 002; segunda chamada não faz nada', async (t) => {
+test('migrate aplica 001, 002 e 003; segunda chamada não faz nada', async (t) => {
   const pool = await resetTestDb({ migrate: false });
   t.after(() => pool.end());
-  assert.deepEqual(await migrate(pool), ['001_init.sql', '002_link_publico.sql']);
+  assert.deepEqual(await migrate(pool), ['001_init.sql', '002_link_publico.sql', '003_imagens.sql']);
   assert.deepEqual(await migrate(pool), []);
 });
 

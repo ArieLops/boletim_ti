@@ -19,6 +19,8 @@ function validateBlock(tipo, dados) {
     else if (s.length > LIMITE) errors.push(`campo ${campo} excede ${LIMITE} caracteres`);
     limpo[campo] = s;
   }
+  // Imagem opcional (id da tabela imagens): só inteiro positivo; qualquer outro valor é descartado.
+  if (Number.isSafeInteger(entrada.imagem) && entrada.imagem > 0) limpo.imagem = entrada.imagem;
   return { ok: errors.length === 0, errors, dados: limpo };
 }
 
