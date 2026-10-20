@@ -81,3 +81,37 @@ test('pagina publica de edicao em revisao nao contem imagem', async () => {
   assert.ok(!r.text.includes('img-bloco'));
   assert.equal(r.headers['set-cookie'], undefined);
 });
+
+test("forjado: dados.imagem de OUTRA edicao nao aparece na previa", async () => {
+  const dona = await criar("Dona da imagem");
+  const alvo = (await edu.post("/edicoes", { mesAno: "2026-10", titulo: "Alvo" })).body.id;
+  await ctx.pool.query("INSERT INTO blocos (edicao_id, ordem, tipo, dados) VALUES (?, 1, ?, ?)", [alvo, "texto", JSON.stringify({ titulo: "T", texto: "X", imagem: dona.imagemId })]);
+  const r = await edu.get("/edicoes/" + alvo + "/preview");
+  assert.equal(r.status, 200);
+  assert.ok(!r.text.includes(B64));
+  assert.ok(!r.text.includes("<figure"));
+});
+
+test("getMany sem ids devolve {} sem consultar a tabela imagens", async () => {
+  let consultas = 0;
+  const orig = ctx.pool.query;
+  ctx.pool.query = function (...a) { consultas++; return orig.apply(this, a); };
+  try {
+    assert.deepEqual(await ctx.app.locals.images.getMany(1, []), {});
+    assert.deepEqual(await ctx.app.locals.images.getMany(1, [null, "x", 0]), {});
+  } finally { ctx.pool.query = orig; }
+  assert.equal(consultas, 0);
+});
+
+test("salvar: ate 30 blocos com imagem (200), 31 => 400; sem imagem nao contam", async () => {
+  const e = await criar("Limite de blocos");
+  const bl = (n, img) => ({ tipo: "texto", dados: { titulo: "T" + n, texto: "X", ...(img ? { imagem: e.imagemId } : {}) } });
+  const com = (n) => Array.from({ length: n }, (_, i) => bl(i, true));
+  const sem = Array.from({ length: 5 }, (_, i) => bl(100 + i, false));
+  let v = 2;
+  const ok = await edu.put("/edicoes/" + e.id, { versao: v, blocos: [...com(30), ...sem] });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  const ruim = await edu.put("/edicoes/" + e.id, { versao: ok.body.versao, blocos: com(31) });
+  assert.equal(ruim.status, 400);
+  assert.match(ruim.body.erro || ruim.body.error || JSON.stringify(ruim.body), /no máximo 30 blocos com imagem/);
+});

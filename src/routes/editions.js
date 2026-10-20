@@ -2,6 +2,7 @@ const express = require('express');
 const { requireLogin } = require('../auth/middleware');
 const { ConflictError } = require('../repos/editions');
 const { validateBlock } = require('../domain/blocks');
+const { MAX_POR_EDICAO } = require('../domain/imagem');
 const { renderEdition } = require('../render/renderEdition');
 const { erro, carregarEdicao, exportador, contextoExport, ExportUnavailableError } = require('./common');
 
@@ -44,6 +45,7 @@ function validarSalvamento(b) {
   }
   const vistos = new Set();
   const blocos = [];
+  let comImagem = 0;
   for (let i = 0; i < b.blocos.length; i++) {
     const bl = b.blocos[i];
     if (!ehObjeto(bl)) return { erro: `bloco ${i + 1} inválido: deve ser um objeto` };
@@ -57,6 +59,7 @@ function validarSalvamento(b) {
     const v = validateBlock(bl.tipo, bl.dados);
     if (!v.ok) return { erro: `bloco ${i + 1} inválido: ${v.errors.join('; ')}` };
     blocos.push({ id, tipo: bl.tipo, dados: bl.dados });
+    if (bl.dados.imagem != null && ++comImagem > MAX_POR_EDICAO) return { erro: `no máximo ${MAX_POR_EDICAO} blocos com imagem por edição` };
   }
   return { ok: { versao: b.versao, campos: c, blocos, token: b.saveToken } };
 }
