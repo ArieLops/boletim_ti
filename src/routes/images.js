@@ -20,12 +20,11 @@ function imagesRoutes() {
       if (!Buffer.isBuffer(req.body) || req.body.length === 0) return erro(res, 415, 'envie uma imagem PNG, JPEG ou WebP');
       const mime = detectarMime(req.body);
       if (!mime) return erro(res, 415, 'o arquivo não é uma imagem PNG, JPEG ou WebP');
-      const { images } = req.app.locals;
-      if ((await images.countByEdition(edicao.id)) >= MAX_POR_EDICAO) {
-        return erro(res, 409, `esta edição já tem ${MAX_POR_EDICAO} imagens (o máximo)`);
-      }
-      const id = await images.saveImage(edicao.id, { mime, buffer: req.body });
-      res.status(201).json({ id });
+      const r = await req.app.locals.images.saveImageLimitada(edicao.id, { mime, buffer: req.body }, MAX_POR_EDICAO);
+      if (r.conflito === 'publicada') return erro(res, 409, 'edição publicada; reabra para editar');
+      if (r.conflito === 'limite') return erro(res, 409, `esta edição já tem ${MAX_POR_EDICAO} imagens (o máximo)`);
+      if (r.conflito) return erro(res, 404, 'edição não encontrada');
+      res.status(201).json({ id: r.id });
     }
   );
 

@@ -71,7 +71,10 @@ test('o mime guardado vem da assinatura, não do cabeçalho', async () => {
 
 test('acima de 2 MB: 413', async () => {
   const grande = Buffer.concat([PNG_SIG, Buffer.alloc(2 * 1024 * 1024 + 10, 1)]);
-  assert.equal((await enviar(edu, ed1, grande)).status, 413);
+  const r = await enviar(edu, ed1, grande);
+  assert.equal(r.status, 413);
+  assert.match(r.headers['content-type'], /application\/json/);
+  assert.equal(r.body.erro, 'corpo da requisição grande demais');
 });
 
 test('edição inexistente ou id malformado: 404', async () => {
@@ -103,4 +106,24 @@ test('limite de 30 imagens por edição: 409 na 31a', async () => {
   const r = await enviar(edu, id, png);
   assert.equal(r.status, 409);
   assert.match(r.body.erro, /30/);
+});
+
+test('envios simultâneos não furam o limite: 29 + 5 em paralelo => um 201, quatro 409, total 30', async () => {
+  const id = await ctx.app.locals.editions.createEdition({ numero: 5, mesAno: '2026-10', titulo: 'E5' }, ctx.ids.edu);
+  for (let i = 0; i < 29; i++) {
+    await ctx.pool.query("INSERT INTO imagens (edicao_id, mime, conteudo) VALUES (?, 'image/png', ?)", [id, png]);
+  }
+  const rs = await Promise.all([1, 2, 3, 4, 5].map(() => enviar(edu, id, png)));
+  assert.deepEqual(rs.map((r) => r.status).sort(), [201, 409, 409, 409, 409]);
+  const [c] = await ctx.pool.query('SELECT COUNT(*) AS n FROM imagens WHERE edicao_id = ?', [id]);
+  assert.equal(Number(c[0].n), 30);
+});
+
+test('repositório: edição publicada no banco => conflito sem gravar', async () => {
+  const id = await ctx.app.locals.editions.createEdition({ numero: 6, mesAno: '2026-10', titulo: 'E6' }, ctx.ids.edu);
+  await ctx.pool.query("UPDATE edicoes SET status = 'publicada' WHERE id = ?", [id]);
+  const r = await ctx.app.locals.images.saveImageLimitada(id, { mime: 'image/png', buffer: png }, 30);
+  assert.deepEqual(r, { conflito: 'publicada' });
+  const [c] = await ctx.pool.query('SELECT COUNT(*) AS n FROM imagens WHERE edicao_id = ?', [id]);
+  assert.equal(Number(c[0].n), 0);
 });
