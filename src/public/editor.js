@@ -183,7 +183,6 @@
     if (!m) return;
     m.textContent = texto || '';
     m.classList.toggle('bloco-imagem-erro', !!ruim);
-    if (texto) anunciar(texto);
   }
 
   // Mostra (id) ou limpa (sem id) a imagem do bloco: data-imagem, miniatura e botão de remover.
@@ -204,6 +203,8 @@
     if (!li.dataset.imagem) return;
     mostrarImagem(li, null);
     mensagemImagem(li, 'Imagem removida.', false);
+    const campo = li.querySelector('.bloco-imagem-arquivo');
+    if (campo) campo.focus(); // o botão de remover some: devolve o foco ao campo de arquivo
     marcarSujo();
   }
 
@@ -251,6 +252,7 @@
     campo.value = '';
     if (!arquivo || travado) return;
     if (!L.tipoImagemPermitido(arquivo.type)) return mensagemImagem(li, 'Use uma imagem PNG, JPEG ou WebP.', true);
+    const tinhaFoco = document.activeElement === campo;
     campo.disabled = true;
     mensagemImagem(li, 'Enviando imagem…', false);
     try {
@@ -273,7 +275,7 @@
       let corpo = null;
       try { corpo = await r.json(); } catch (e) { corpo = null; }
       if (r.status === 201 && corpo && Number.isInteger(corpo.id)) {
-        if (!li.isConnected || travado) return; // o bloco foi removido/trocado ou a edição publicada durante o envio
+        if (!li.isConnected || travado) return aviso('A imagem não foi anexada porque o bloco mudou durante o envio.', 'erro');
         mostrarImagem(li, corpo.id);
         mensagemImagem(li, 'Imagem adicionada.', false);
         marcarSujo();
@@ -283,6 +285,7 @@
       mensagemImagem(li, texto.charAt(0).toUpperCase() + texto.slice(1), true);
     } finally {
       campo.disabled = false;
+      if (tinhaFoco && campo.isConnected) campo.focus();
     }
   }
 

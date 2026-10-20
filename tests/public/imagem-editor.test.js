@@ -35,4 +35,6 @@ test('editor.js: tratamento da imagem (lerBloco, troca de tipo, erros por textCo
   assert.match(fonte, /remover-imagem/);
   assert.match(fonte, /Api\.url\('\/edicoes\/' \+ ID \+ '\/imagens/);
   assert.doesNotMatch(fonte, /innerHTML/);
+  assert.match(fonte, /A imagem não foi anexada porque o bloco mudou durante o envio\./);
+  assert.doesNotMatch(fonte.match(/function mensagemImagem[^}]*}/)[0], /anunciar/);
 });

@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { detectarMime, MAX_BYTES, MAX_POR_EDICAO } = require('../../src/domain/imagem');
+const { detectarMime, MAX_BYTES, MAX_POR_EDICAO, MAX_BLOCOS_COM_IMAGEM } = require('../../src/domain/imagem');
 
 const png = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(10, 1)]);
 const jpg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(10, 2)]);
@@ -8,7 +8,8 @@ const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.from([1, 2, 3, 4]), Buff
 
 test('constantes de limite', () => {
   assert.equal(MAX_BYTES, 2 * 1024 * 1024);
-  assert.equal(MAX_POR_EDICAO, 30);
+  assert.equal(MAX_POR_EDICAO, 60);
+  assert.equal(MAX_BLOCOS_COM_IMAGEM, 30);
 });
 
 test('detectarMime reconhece PNG, JPEG e WebP pela assinatura', () => {

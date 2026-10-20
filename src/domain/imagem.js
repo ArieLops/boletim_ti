@@ -1,5 +1,6 @@
 const MAX_BYTES = 2 * 1024 * 1024;
-const MAX_POR_EDICAO = 30;
+const MAX_BLOCOS_COM_IMAGEM = 30; // blocos que podem ter imagem ao mesmo tempo
+const MAX_POR_EDICAO = 60; // imagens enviadas/armazenadas (inclui as órfãs que esperam 1 hora para a limpeza)
 
 const PNG = Buffer.from('89504e470d0a1a0a', 'hex');
 
@@ -12,4 +13,4 @@ function detectarMime(buf) {
   return null;
 }
 
-module.exports = { detectarMime, MAX_BYTES, MAX_POR_EDICAO };
+module.exports = { detectarMime, MAX_BYTES, MAX_POR_EDICAO, MAX_BLOCOS_COM_IMAGEM };
