@@ -269,3 +269,15 @@ label.cor input[type="text"] { width: 140px; }
 .dialogo-confirmar::backdrop { background: rgba(9, 61, 56, 0.45); }
 .dialogo-confirmar p { margin: 0 0 18px; line-height: 1.45; }
 .dialogo-acoes { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ---------- imagem opcional do bloco ---------- */
+.bloco-imagem { display: flex; flex-direction: column; gap: 0.3rem; }
+.bloco-imagem-rotulo { font-weight: 600; font-size: 0.9rem; }
+.bloco-imagem-corpo { display: flex; gap: 0.9rem; align-items: flex-start; flex-wrap: wrap; }
+.bloco-imagem-mini { width: 96px; height: 72px; object-fit: contain; background: #eef3ef; border: 1px solid var(--borda); border-radius: 6px; }
+.bloco-imagem-mini[hidden] { display: none; }
+.bloco-imagem[hidden], .bloco-imagem-acoes[hidden] { display: none; }
+.bloco-imagem-acoes { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; flex: 1 1 14rem; min-width: 0; }
+.bloco-item input.bloco-imagem-arquivo { min-height: 0; padding: 0.3rem; font-size: 0.85rem; }
+.bloco-imagem-msg { min-height: 1.2rem; font-size: 0.88rem; color: var(--verde-escuro); font-weight: 600; }
+.bloco-imagem-msg.bloco-imagem-erro { color: var(--erro); }

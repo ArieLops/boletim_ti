@@ -10,7 +10,7 @@ Execute os comandos como root (`sudo -i`) ou com `sudo` exatamente como escritos
 
 - **Ordem segura: aplicação antes do Apache.** Primeiro o novo contêiner é validado direto em `127.0.0.1` (porta reserva e depois 3100); só então o Apache é alterado.
 - **Não toque** em outros contêineres, em outros VirtualHosts/sites do Apache, nem no banco (nenhum `DROP`/recriação).
-- **Banco: a versão 1.1 aplica uma migração aditiva (`002_link_publico.sql`).** Ela acrescenta a coluna `edicoes.token_publico` (anulável) e um índice único; não remove nem altera nada existente. A imagem `1.0` ignora a coluna nova, então o banco migrado continua válido para a `1.0` (é o que torna o rollback seguro). A migração roda sozinha na primeira subida da `1.1` e é re-executável. A tabela de sessões é a mesma do `express-mysql-session`. Verificação (passo 0.4): antes, `SELECT nome FROM schema_migrations;` mostra apenas `001_init.sql`; depois da primeira subida da `1.1` mostra `001_init.sql` e `002_link_publico.sql`.
+- **Banco: a versão 1.1 aplica migrações aditivas (`002_link_publico.sql` e `003_imagens.sql`).** Ela acrescenta a coluna `edicoes.token_publico` (anulável) e um índice único; não remove nem altera nada existente. A imagem `1.0` ignora a coluna nova, então o banco migrado continua válido para a `1.0` (é o que torna o rollback seguro). A migração roda sozinha na primeira subida da `1.1` e é re-executável. A `003_imagens.sql` cria a tabela `imagens` (imagens opcionais dos blocos; `CREATE TABLE IF NOT EXISTS`, nada existente é alterado). A tabela de sessões é a mesma do `express-mysql-session`. Verificação (passo 0.4): antes, `SELECT nome FROM schema_migrations;` mostra apenas `001_init.sql`; depois da primeira subida da `1.1` mostra `001_init.sql`, `002_link_publico.sql` e `003_imagens.sql`.
 - Cada etapa tem validação; se falhar, pare e vá para o Rollback (a imagem `1.0` e o contêiner antigo permanecem intactos até o fim).
 - Sessões: o cookie passa de `sid` para `boletim.sid` (com `Path=/boletim_ti`). Sessões antigas simplesmente expiram; os usuários entram de novo uma vez. Nenhum dado é perdido.
 - Indisponibilidade: só entre `docker stop` do antigo e o novo ficar saudável (o app responde em alguns segundos; o status `healthy` leva até ~30 s). Para reduzir o risco, o passo 2 valida o `1.1` antes, em porta reserva, sem derrubar o `1.0`.
@@ -103,7 +103,7 @@ Para restaurar: `zcat arquivo.sql.gz | mysql <nome-do-banco>` com uma conta que 
 sudo mysql --defaults-extra-file=/root/.boletim-dump.cnf <nome-do-banco> -e 'SELECT nome FROM schema_migrations;'
 ```
 
-Esperado agora: apenas `001_init.sql`. Depois que a `1.1` subir pela primeira vez (passo 2 ou 3), repita o comando: devem aparecer `001_init.sql` e `002_link_publico.sql`.
+Esperado agora: apenas `001_init.sql`. Depois que a `1.1` subir pela primeira vez (passo 2 ou 3), repita o comando: devem aparecer `001_init.sql`, `002_link_publico.sql` e `003_imagens.sql`.
 
 **0.5 Registrar a configuração do contêiner antigo** (os valores são sensíveis: grave num arquivo `600`, não cole em chamados):
 
@@ -127,7 +127,7 @@ Validação: o build termina sem erro. **Não** remova a `1.0`.
 
 ### 2. Validar o 1.1 em porta reserva (antes de tocar no 1.0)
 
-O `1.1` sobe ao lado do `1.0`, na porta 3101, contra o mesmo banco. Atenção: é este contêiner de teste que aplica a migração `002_link_publico.sql` no banco compartilhado (aditiva, e a `1.0` a ignora). As sessões ficam na mesma tabela, mas com cookie de nome diferente (`boletim.sid` vs `sid`), então os dois não se atrapalham.
+O `1.1` sobe ao lado do `1.0`, na porta 3101, contra o mesmo banco. Atenção: é este contêiner de teste que aplica as migrações `002_link_publico.sql` e `003_imagens.sql` no banco compartilhado (aditivas, e a `1.0` as ignora). As sessões ficam na mesma tabela, mas com cookie de nome diferente (`boletim.sid` vs `sid`), então os dois não se atrapalham.
 
 ```bash
 docker run -d --name boletim-teste --init --shm-size=512m \
@@ -240,7 +240,7 @@ Validação do rollback:
 
 ### Banco
 
-Nada a reverter: a migração `002_link_publico.sql` é aditiva e o banco migrado continua válido para a `1.0` (ela ignora a coluna `token_publico`); deixe `schema_migrations` como está. **Não** restaure o dump a menos que haja corrupção comprovada (restaurar apaga o que foi editado depois do backup).
+Nada a reverter: as migrações `002_link_publico.sql` e `003_imagens.sql` são aditivas e o banco migrado continua válido para a `1.0` (ela ignora a coluna `token_publico` e a tabela `imagens`); deixe `schema_migrations` como está. **Atenção com as imagens dos blocos:** a `1.0` só conhece os campos de texto dos blocos, então toda edição salva por ela descarta o `dados.imagem` dos blocos. As imagens continuam na tabela `imagens`, mas ficam desligadas dos blocos das edições salvas depois do rollback (e as já publicadas continuam com os PDF/PNG gerados, que levam a imagem). Se a atualização for refeita, as imagens desligadas precisam ser reenviadas no editor. **Não** restaure o dump a menos que haja corrupção comprovada (restaurar apaga o que foi editado depois do backup).
 
 ## O que NÃO tocar
 

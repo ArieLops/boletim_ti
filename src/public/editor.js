@@ -76,6 +76,7 @@
   function lerBloco(li) {
     const dados = {};
     li.querySelectorAll('input[name], textarea[name]').forEach((el) => { dados[el.name] = el.value; });
+    if (li.dataset.imagem) dados.imagem = Number(li.dataset.imagem);
     return { id: li.dataset.id ? Number(li.dataset.id) : null, tipo: li.dataset.tipo, dados };
   }
   const montarPayload = () => L.serializar({ versao, campos: lerCampos(), blocos: itens().map(lerBloco) });
@@ -133,7 +134,8 @@
     const botao = ev.target.closest('[data-acao]');
     if (!botao || travado) return;
     const li = botao.closest('.bloco-item');
-    if (botao.dataset.acao === 'remover') remover(li);
+    if (botao.dataset.acao === 'remover-imagem') removerImagem(li);
+    else if (botao.dataset.acao === 'remover') remover(li);
     else mover(li, botao.dataset.acao === 'subir' ? -1 : 1);
   });
   document.querySelectorAll('[data-adicionar]').forEach((b) => b.addEventListener('click', () => !travado && adicionar(b.dataset.adicionar)));
@@ -157,6 +159,7 @@
     const nova = tpl.content.firstElementChild.cloneNode(true);
     if (li.dataset.id) nova.dataset.id = li.dataset.id;
     nova.querySelectorAll('input[name], textarea[name]').forEach((el) => { el.value = r.dados[el.name] || ''; });
+    if (li.dataset.imagem) mostrarImagem(nova, li.dataset.imagem); // a imagem acompanha o bloco ao trocar o tipo
     li.replaceWith(nova);
     atualizarPosicoes();
     nova.querySelector('[data-tipo-select]').focus();
@@ -164,8 +167,124 @@
     marcarSujo();
   }
   // O select dispara "input" além de "change"; só o "change" (já confirmado) deve marcar a edição como alterada.
-  lista.addEventListener('input', (ev) => { if (ev.target.matches('[data-tipo-select]')) ev.stopPropagation(); }, true);
-  lista.addEventListener('change', (ev) => { if (ev.target.matches('[data-tipo-select]')) trocarTipoBloco(ev.target); });
+  // O campo de arquivo também: a edição só é marcada depois que o envio da imagem termina.
+  lista.addEventListener('input', (ev) => { if (ev.target.matches('[data-tipo-select], .bloco-imagem-arquivo')) ev.stopPropagation(); }, true);
+  lista.addEventListener('change', (ev) => {
+    if (ev.target.matches('[data-tipo-select]')) trocarTipoBloco(ev.target);
+    else if (ev.target.matches('.bloco-imagem-arquivo')) escolherImagem(ev.target);
+  });
+
+  // ---------- imagem do bloco ----------
+  const LADO_MAXIMO_IMAGEM = 1200;
+  const BYTES_MAXIMOS_IMAGEM = 2 * 1024 * 1024; // mesmo limite do servidor
+
+  function mensagemImagem(li, texto, ruim) {
+    const m = li.querySelector('.bloco-imagem-msg');
+    if (!m) return;
+    m.textContent = texto || '';
+    m.classList.toggle('bloco-imagem-erro', !!ruim);
+    if (texto) anunciar(texto);
+  }
+
+  // Mostra (id) ou limpa (sem id) a imagem do bloco: data-imagem, miniatura e botão de remover.
+  function mostrarImagem(li, id) {
+    const mini = li.querySelector('.bloco-imagem-mini');
+    const botao = li.querySelector('[data-acao="remover-imagem"]');
+    if (id) {
+      li.dataset.imagem = String(id);
+      if (mini) { mini.src = Api.url('/edicoes/' + ID + '/imagens/' + id); mini.hidden = false; }
+    } else {
+      delete li.dataset.imagem;
+      if (mini) { mini.removeAttribute('src'); mini.hidden = true; }
+    }
+    if (botao) botao.hidden = !id;
+  }
+
+  function removerImagem(li) {
+    if (!li.dataset.imagem) return;
+    mostrarImagem(li, null);
+    mensagemImagem(li, 'Imagem removida.', false);
+    marcarSujo();
+  }
+
+  function decodificar(arquivo) {
+    if (window.createImageBitmap) return window.createImageBitmap(arquivo);
+    return new Promise((ok, falha) => {
+      const url = URL.createObjectURL(arquivo);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); ok(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); falha(new Error('imagem ilegível')); };
+      img.src = url;
+    });
+  }
+  const paraBlob = (canvas, tipo, qualidade) => new Promise((ok) => canvas.toBlob(ok, tipo, qualidade));
+
+  // Reduz (lado maior <= 1200 px, sem ampliar). PNG fica PNG; os demais viram JPEG 0,85.
+  // Se o PNG reduzido ainda passar de 2 MB, tenta JPEG (fundo branco no lugar da transparência).
+  async function reduzirImagem(arquivo) {
+    const origem = await decodificar(arquivo);
+    const larguraOrigem = origem.naturalWidth || origem.width;
+    const alturaOrigem = origem.naturalHeight || origem.height;
+    const d = L.dimensoesReducao(larguraOrigem, alturaOrigem, LADO_MAXIMO_IMAGEM);
+    const canvas = document.createElement('canvas');
+    canvas.width = d.largura;
+    canvas.height = d.altura;
+    const ctx = canvas.getContext('2d');
+    let blob = null;
+    if (arquivo.type === 'image/png') {
+      ctx.drawImage(origem, 0, 0, d.largura, d.altura);
+      blob = await paraBlob(canvas, 'image/png');
+    }
+    if (!blob || blob.size > BYTES_MAXIMOS_IMAGEM) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, d.largura, d.altura);
+      ctx.drawImage(origem, 0, 0, d.largura, d.altura);
+      blob = await paraBlob(canvas, 'image/jpeg', 0.85);
+    }
+    if (origem.close) origem.close();
+    return blob;
+  }
+
+  async function escolherImagem(campo) {
+    const li = campo.closest('.bloco-item');
+    const arquivo = campo.files && campo.files[0];
+    campo.value = '';
+    if (!arquivo || travado) return;
+    if (!L.tipoImagemPermitido(arquivo.type)) return mensagemImagem(li, 'Use uma imagem PNG, JPEG ou WebP.', true);
+    campo.disabled = true;
+    mensagemImagem(li, 'Enviando imagem…', false);
+    try {
+      let blob;
+      try { blob = await reduzirImagem(arquivo); } catch (e) { blob = null; }
+      if (!blob) return mensagemImagem(li, 'Não foi possível ler esta imagem. Tente outro arquivo.', true);
+      if (blob.size > BYTES_MAXIMOS_IMAGEM) return mensagemImagem(li, 'A imagem é grande demais (máximo 2 MB). Escolha uma menor.', true);
+      let r;
+      try {
+        r = await fetch(Api.url('/edicoes/' + ID + '/imagens'), {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: Api.cabecalhos({ 'Content-Type': blob.type }),
+          body: blob,
+        });
+      } catch (e) {
+        return mensagemImagem(li, 'Falha de conexão ao enviar a imagem.', true);
+      }
+      if (r.status === 401) return window.location.assign(Api.url('/login'));
+      let corpo = null;
+      try { corpo = await r.json(); } catch (e) { corpo = null; }
+      if (r.status === 201 && corpo && Number.isInteger(corpo.id)) {
+        if (!li.isConnected || travado) return; // o bloco foi removido/trocado ou a edição publicada durante o envio
+        mostrarImagem(li, corpo.id);
+        mensagemImagem(li, 'Imagem adicionada.', false);
+        marcarSujo();
+        return;
+      }
+      const texto = r.status === 413 ? 'A imagem é grande demais (máximo 2 MB).' : (corpo && typeof corpo.erro === 'string' && corpo.erro) || 'Não foi possível enviar a imagem (erro ' + r.status + ').';
+      mensagemImagem(li, texto.charAt(0).toUpperCase() + texto.slice(1), true);
+    } finally {
+      campo.disabled = false;
+    }
+  }
 
   // ---------- salvamento automático ----------
   function marcarSujo() {
@@ -441,6 +560,9 @@
     clearTimeout(timerRetentar);
     form.querySelectorAll('input, textarea').forEach((el) => { el.disabled = true; });
     lista.querySelectorAll('input, textarea, button, select').forEach((el) => { el.disabled = true; });
+    // Publicada: só a miniatura (sem escolher/remover); bloco sem imagem não mostra a seção.
+    lista.querySelectorAll('.bloco-imagem-acoes').forEach((el) => { el.hidden = true; });
+    lista.querySelectorAll('.bloco-item:not([data-imagem]) .bloco-imagem').forEach((el) => { el.hidden = true; });
     document.querySelectorAll('[data-adicionar]').forEach((el) => { el.disabled = true; });
     $('btn-publicar').hidden = true;
     $('btn-reabrir').hidden = false;

@@ -137,7 +137,7 @@
     const texto = (v) => (v == null ? '' : String(v));
     const out = {};
     novos.forEach((c) => { out[c] = texto(origem[c]); });
-    const descartados = Object.keys(origem).filter((c) => !novos.includes(c) && texto(origem[c]).trim() !== '');
+    const descartados = Object.keys(origem).filter((c) => c !== 'imagem' && !novos.includes(c) && texto(origem[c]).trim() !== '');
     const faltando = novos.filter((c) => out[c].trim() === '');
     return { dados: out, descartados, faltando };
   }
@@ -157,5 +157,16 @@
       : 'Link público em revisão: o mesmo link mostra o aviso "em revisão" até a edição ser publicada de novo.';
   }
 
-  return { urlPublica, rotuloEstadoLink, CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
+  // Redução de imagem no navegador: lado maior <= maximo, sem ampliar, mantendo a proporção.
+  function dimensoesReducao(largura, altura, maximo) {
+    const k = Math.min(1, maximo / Math.max(largura, altura));
+    return { largura: Math.max(1, Math.round(largura * k)), altura: Math.max(1, Math.round(altura * k)) };
+  }
+
+  const MIMES_IMAGEM = ['image/png', 'image/jpeg', 'image/webp'];
+  function tipoImagemPermitido(mime) {
+    return MIMES_IMAGEM.includes(mime);
+  }
+
+  return { urlPublica, rotuloEstadoLink, dimensoesReducao, tipoImagemPermitido, CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
 });

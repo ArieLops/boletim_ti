@@ -1,7 +1,8 @@
 <%
   const rotuloTipo = (tiposBloco.find(function (t) { return t.tipo === bloco.tipo; }) || {}).rotulo || bloco.tipo;
   const dados = bloco.dados || {};
-%><li class="bloco-item" <%- bloco.id ? 'data-id="' + Number(bloco.id) + '" ' : '' %>data-tipo="<%= bloco.tipo %>">
+  const imagemId = Number.isInteger(dados.imagem) && dados.imagem > 0 ? dados.imagem : 0;
+%><li class="bloco-item" <%- bloco.id ? 'data-id="' + Number(bloco.id) + '" ' : '' %><%- imagemId ? 'data-imagem="' + imagemId + '" ' : '' %>data-tipo="<%= bloco.tipo %>">
   <div class="bloco-cabeca">
     <h3 class="bloco-titulo"><span class="bloco-pos"></span> <%= rotuloTipo %></h3>
     <select class="bloco-tipo" data-tipo-select aria-label="Tipo do bloco"<%= travado ? ' disabled' : '' %>>
@@ -20,4 +21,19 @@
     <% } %>
   </label>
   <% }) %>
+  <% if (!travado || imagemId) { %>
+  <div class="bloco-imagem">
+    <span class="bloco-imagem-rotulo"><%= travado ? 'Imagem' : 'Imagem (opcional)' %></span>
+    <div class="bloco-imagem-corpo">
+      <img class="bloco-imagem-mini" alt="Imagem do bloco"<%- imagemId ? ' src="' + u('/edicoes/' + Number(edicao.id) + '/imagens/' + imagemId) + '"' : ' hidden' %>>
+      <% if (!travado) { %>
+      <div class="bloco-imagem-acoes">
+        <input type="file" class="bloco-imagem-arquivo" accept="image/png,image/jpeg,image/webp" aria-label="Escolher imagem do bloco">
+        <button type="button" class="btn btn-claro" data-acao="remover-imagem"<%- imagemId ? '' : ' hidden' %>>Remover imagem</button>
+        <span class="bloco-imagem-msg" role="status"></span>
+      </div>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
 </li>
