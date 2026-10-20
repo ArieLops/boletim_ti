@@ -281,3 +281,7 @@ label.cor input[type="text"] { width: 140px; }
 .bloco-item input.bloco-imagem-arquivo { min-height: 0; padding: 0.3rem; font-size: 0.85rem; }
 .bloco-imagem-msg { min-height: 1.2rem; font-size: 0.88rem; color: var(--verde-escuro); font-weight: 600; }
 .bloco-imagem-msg.bloco-imagem-erro { color: var(--erro); }
+
+/* ---------- aviso de edição incompleta ---------- */
+.campo-invalido { border-color: var(--erro) !important; box-shadow: 0 0 0 2px rgba(179, 38, 30, 0.2); }
+#aviso-previa { margin: 0 0 0.6rem; }

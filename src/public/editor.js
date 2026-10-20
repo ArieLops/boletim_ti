@@ -63,6 +63,25 @@
     erroBlocos.hidden = false;
   }
 
+  // Edição incompleta: a prévia continua mostrando a última versão salva. O aviso ao lado dela diz o que falta
+  // e os campos vazios ficam destacados (limpos no próximo salvamento que passar na validação).
+  const avisoPrevia = $('aviso-previa');
+  function marcarFaltas(lista) {
+    document.querySelectorAll('.campo-invalido').forEach((el) => el.classList.remove('campo-invalido'));
+    const lis = itens();
+    lista.forEach((f) => {
+      const li = lis[f.bloco - 1];
+      const campo = li && li.querySelector('[name="' + f.campo + '"]');
+      if (campo) campo.classList.add('campo-invalido');
+    });
+  }
+  function avisoDaPrevia(problemas) {
+    if (!problemas.length) { avisoPrevia.hidden = true; avisoPrevia.textContent = ''; return; }
+    const resto = problemas.length > 3 ? ' (e mais ' + (problemas.length - 3) + ')' : '';
+    avisoPrevia.textContent = 'A pré-visualização mostra a última versão salva. Não salvo: ' + problemas.slice(0, 3).join(' ') + resto;
+    avisoPrevia.hidden = false;
+  }
+
   function setEstado(chave, texto) {
     estado.dataset.estado = chave;
     estado.textContent = texto;
@@ -328,10 +347,14 @@
       if (problemas.length) {
         setEstado('invalido', 'Não salvo: faltam dados');
         erroDosBlocos(problemas);
+        marcarFaltas(L.faltas(payload));
+        avisoDaPrevia(problemas);
         return false;
       }
     }
     erroDosBlocos([]);
+    marcarFaltas([]);
+    avisoDaPrevia([]);
     const geracaoEnviada = plano.reenvio ? incerto.geracao : geracao;
     const lisEnviados = plano.reenvio ? incerto.lis : itens();
     setEstado('salvando', 'Salvando…');

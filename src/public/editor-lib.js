@@ -70,14 +70,25 @@
     const c = payload.campos || {};
     if (!String(c.titulo || '').trim()) erros.push('Informe o título da edição.');
     if (!MES_ANO.test(String(c.mesAno || ''))) erros.push('Informe o mês/ano no formato AAAA-MM.');
+    faltas(payload).forEach((f) => {
+      const rotulo = ROTULOS_CAMPO[f.campo] || f.campo;
+      erros.push(f.motivo === 'vazio' ? `Bloco ${f.bloco}: preencha ${rotulo}.` : `Bloco ${f.bloco}: ${rotulo} excede ${LIMITE_CAMPO} caracteres.`);
+    });
+    return erros;
+  }
+
+  // Campos de bloco vazios ou grandes demais: [{ bloco (1-based), campo, motivo: 'vazio' | 'longo' }].
+  // Usado para mostrar o aviso e destacar os campos no editor.
+  function faltas(payload) {
+    const lista = [];
     payload.blocos.forEach((b, i) => {
       for (const campo of CAMPOS[b.tipo] || []) {
         const v = String((b.dados || {})[campo] || '').trim();
-        if (!v) erros.push(`Bloco ${i + 1}: preencha o campo ${campo}.`);
-        else if (v.length > LIMITE_CAMPO) erros.push(`Bloco ${i + 1}: o campo ${campo} excede ${LIMITE_CAMPO} caracteres.`);
+        if (!v) lista.push({ bloco: i + 1, campo, motivo: 'vazio' });
+        else if (v.length > LIMITE_CAMPO) lista.push({ bloco: i + 1, campo, motivo: 'longo' });
       }
     });
-    return erros;
+    return lista;
   }
 
   // Resposta de erro da API -> o que a interface deve fazer.
@@ -170,5 +181,5 @@
     return MIMES_IMAGEM.includes(mime);
   }
 
-  return { urlPublica, rotuloEstadoLink, MAX_BLOCOS_COM_IMAGEM, dimensoesReducao, tipoImagemPermitido, CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
+  return { urlPublica, rotuloEstadoLink, MAX_BLOCOS_COM_IMAGEM, dimensoesReducao, tipoImagemPermitido, CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, faltas, classificarErro, precisaConfirmarCorte, nomeArquivo };
 });
