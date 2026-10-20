@@ -1,4 +1,4 @@
-const MAX_BYTES = 2 * 1024 * 1024;
+const MAX_BYTES = 1 * 1024 * 1024; // 1 MB (o navegador reduz a 800 px antes de enviar)
 const MAX_BLOCOS_COM_IMAGEM = 30; // blocos que podem ter imagem ao mesmo tempo
 const MAX_POR_EDICAO = 60; // imagens enviadas/armazenadas (inclui as órfãs que esperam 1 hora para a limpeza)
 

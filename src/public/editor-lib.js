@@ -163,10 +163,12 @@
     return { largura: Math.max(1, Math.round(largura * k)), altura: Math.max(1, Math.round(altura * k)) };
   }
 
+  const MAX_BLOCOS_COM_IMAGEM = 30; // espelha o limite do servidor
+
   const MIMES_IMAGEM = ['image/png', 'image/jpeg', 'image/webp'];
   function tipoImagemPermitido(mime) {
     return MIMES_IMAGEM.includes(mime);
   }
 
-  return { urlPublica, rotuloEstadoLink, dimensoesReducao, tipoImagemPermitido, CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
+  return { urlPublica, rotuloEstadoLink, MAX_BLOCOS_COM_IMAGEM, dimensoesReducao, tipoImagemPermitido, CAMPOS, ROTULOS_CAMPO, listaCampos, trocarTipo, LIMITE_CAMPO, MSG_503, mover, faltaTexto, textoCorte, novoToken, envioIncerto, planejarEnvio, textoAjuste, serializar, validarLocal, classificarErro, precisaConfirmarCorte, nomeArquivo };
 });

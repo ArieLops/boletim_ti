@@ -7,7 +7,7 @@ const jpg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(1
 const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.from([1, 2, 3, 4]), Buffer.from('WEBP'), Buffer.alloc(10)]);
 
 test('constantes de limite', () => {
-  assert.equal(MAX_BYTES, 2 * 1024 * 1024);
+  assert.equal(MAX_BYTES, 1024 * 1024);
   assert.equal(MAX_POR_EDICAO, 60);
   assert.equal(MAX_BLOCOS_COM_IMAGEM, 30);
 });

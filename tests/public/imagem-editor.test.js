@@ -5,11 +5,15 @@ const path = require('node:path');
 const lib = require('../../src/public/editor-lib');
 
 test('dimensoesReducao: lado maior limitado ao máximo, sem ampliar', () => {
-  assert.deepEqual(lib.dimensoesReducao(4000, 3000, 1200), { largura: 1200, altura: 900 });
-  assert.deepEqual(lib.dimensoesReducao(800, 600, 1200), { largura: 800, altura: 600 });
-  assert.deepEqual(lib.dimensoesReducao(600, 4800, 1200), { largura: 150, altura: 1200 });
-  assert.deepEqual(lib.dimensoesReducao(1200, 1200, 1200), { largura: 1200, altura: 1200 });
-  assert.deepEqual(lib.dimensoesReducao(10000, 1, 1200), { largura: 1200, altura: 1 });
+  assert.deepEqual(lib.dimensoesReducao(4000, 3000, 800), { largura: 800, altura: 600 });
+  assert.deepEqual(lib.dimensoesReducao(640, 480, 800), { largura: 640, altura: 480 });
+  assert.deepEqual(lib.dimensoesReducao(600, 4800, 800), { largura: 100, altura: 800 });
+  assert.deepEqual(lib.dimensoesReducao(800, 800, 800), { largura: 800, altura: 800 });
+  assert.deepEqual(lib.dimensoesReducao(10000, 1, 800), { largura: 800, altura: 1 });
+});
+
+test('MAX_BLOCOS_COM_IMAGEM é 30 e vem do editor-lib', () => {
+  assert.equal(lib.MAX_BLOCOS_COM_IMAGEM, 30);
 });
 
 test('tipoImagemPermitido: só png, jpeg e webp', () => {
@@ -35,6 +39,8 @@ test('editor.js: tratamento da imagem (lerBloco, troca de tipo, erros por textCo
   assert.match(fonte, /remover-imagem/);
   assert.match(fonte, /Api\.url\('\/edicoes\/' \+ ID \+ '\/imagens/);
   assert.doesNotMatch(fonte, /innerHTML/);
+  assert.match(fonte, /L\.MAX_BLOCOS_COM_IMAGEM/);
+  assert.match(fonte, /LADO_MAXIMO_IMAGEM = 800/);
   assert.match(fonte, /A imagem não foi anexada porque o bloco mudou durante o envio\./);
   assert.doesNotMatch(fonte.match(/function mensagemImagem[^}]*}/)[0], /anunciar/);
 });

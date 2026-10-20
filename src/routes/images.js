@@ -8,7 +8,7 @@ const TIPOS = ['image/png', 'image/jpeg', 'image/webp'];
 function imagesRoutes() {
   const r = express.Router();
 
-  // Corpo binário cru (PNG/JPEG/WebP até 2 MB). O tipo real vem da assinatura do conteúdo.
+  // Corpo binário cru (PNG/JPEG/WebP até 1 MB). O tipo real vem da assinatura do conteúdo.
   r.post(
     '/edicoes/:id/imagens',
     requireLogin,
@@ -22,7 +22,7 @@ function imagesRoutes() {
       if (!mime) return erro(res, 415, 'o arquivo não é uma imagem PNG, JPEG ou WebP');
       const r = await req.app.locals.images.saveImageLimitada(edicao.id, { mime, buffer: req.body }, MAX_POR_EDICAO);
       if (r.conflito === 'publicada') return erro(res, 409, 'edição publicada; reabra para editar');
-      if (r.conflito === 'limite') return erro(res, 409, `esta edição já tem ${MAX_POR_EDICAO} imagens enviadas (o máximo); remova blocos ou aguarde 1 hora para a limpeza das imagens não usadas`);
+      if (r.conflito === 'limite') return erro(res, 409, `esta edição já tem ${MAX_POR_EDICAO} imagens enviadas (o máximo); edite e salve a edição: imagens não usadas há mais de 1 hora são liberadas ao salvar`);
       if (r.conflito) return erro(res, 404, 'edição não encontrada');
       res.status(201).json({ id: r.id });
     }

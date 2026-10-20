@@ -11,7 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-10-20-imagem-nos-blocos-design.md` (autoridade; este plano argumenta a partir dela).
 
 ## Global Constraints
-- Tipos aceitos: **PNG, JPEG, WebP**, validados pela **assinatura do conteúdo**; SVG/GIF/outros → 415. Limite **2 MB** (413) e **30 imagens por edição** (409).
+- Tipos aceitos: **PNG, JPEG, WebP**, validados pela **assinatura do conteúdo**; SVG/GIF/outros → 415. Limite **1 MB** (413), **60 imagens enviadas por edição** (409) e **30 blocos com imagem** (400 ao salvar); redução no navegador a 800 px.
 - Envio só em edição **rascunho** (409 se publicada); login + CSRF (`X-CSRF-Token`) como as outras rotas; erros pelo contrato `erro(res, status, msg)`.
 - `dados.imagem` = inteiro positivo ou ausente; imagem de **outra edição** é descartada no salvamento; órfãs só apagadas se tiverem **> 1 hora**.
 - Largura da figura **35%** da caixa, `max-height: 180px` (com `s(...)` da escala), proporção mantida (`object-fit:contain`), à direita; sem imagem o HTML do bloco é **idêntico** ao atual (os 377 testes existentes continuam passando).
@@ -24,7 +24,7 @@
 - SVG/GIF/arquivo falso (assinatura diferente do `Content-Type`) não entram, mesmo com cabeçalho "image/png".
 - Salvamento concorrente com um envio recém-concluído não pode apagar a imagem nova (regra das 1 hora).
 - Trocar o tipo do bloco mantém a imagem; remover o bloco não deixa a imagem referenciada por outro.
-- Edição com 20+ blocos com imagem ainda gera PDF de 1 página (reduz a escala) e página pública leve o bastante para abrir.
+- Imagens consomem altura: na prática cabem cerca de 4 a 5 blocos com imagem por página A4; acima disso vale o fluxo existente "conteúdo será cortado" (409 e confirmação). A página pública continua leve o bastante para abrir.
 - Página pública e "em revisão": nada do rascunho (nem imagens) vaza; página pública sem cookie.
 - Voltar para a imagem anterior (rollback) não quebra o banco; `deploy/ATUALIZACAO.md` avisa que `dados.imagem` é descartado ao salvar na versão antiga.
 
@@ -38,7 +38,7 @@
 - Test: `tests/domain/imagem.test.js`, `tests/db/migration-imagens.test.js`, `tests/routes/imagens.test.js`, `tests/repos/images.test.js`, ajustar `tests/db/migrate.test.js` (lista de migrações)
 
 **Interfaces:**
-- Produces: `imagem.detectarMime(buf) → 'image/png'|'image/jpeg'|'image/webp'|null`; constantes `MAX_BYTES = 2*1024*1024`, `MAX_POR_EDICAO = 30`.
+- Produces: `imagem.detectarMime(buf) → 'image/png'|'image/jpeg'|'image/webp'|null`; constantes `MAX_BYTES = 1024*1024`, `MAX_POR_EDICAO = 60`, `MAX_BLOCOS_COM_IMAGEM = 30`.
 - Produces: `makeImagesRepo(pool)` com `saveImage(edicaoId, {mime, buffer}) → id`, `getImage(edicaoId, id) → {mime, buffer}|null`, `getMany(edicaoId, ids) → { [id]: {mime, buffer} }` (só imagens da edição), `countByEdition(edicaoId) → number`.
 - Produces: `validateBlock(tipo, dados)` passa a devolver `dados.imagem` (inteiro positivo) quando presente em `entrada.imagem`; qualquer outro valor é descartado. `saveEdition` mantém a regra de posse/órfãs do spec §3.4.
 - Rotas: `POST /edicoes/:id/imagens` → `201 {id}`; `GET /edicoes/:id/imagens/:imagemId` → bytes.

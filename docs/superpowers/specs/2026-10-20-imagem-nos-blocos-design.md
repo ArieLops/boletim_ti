@@ -21,7 +21,7 @@ A imagem anterior (1.1) continua funcionando com o banco migrado (a tabela nova 
 `dados.imagem` = id numérico (inteiro positivo) da tabela `imagens`; opcional nos 4 tipos. `validateBlock` aceita `imagem` (só inteiro positivo; qualquer outro valor é descartado) e continua exigindo os campos de texto atuais. A imagem é atributo do **bloco**, não de um campo: ao **trocar o tipo** do bloco, a imagem é mantida.
 
 ### 3.3 Envio e leitura (rotas autenticadas, no Router com sessão/CSRF)
-- `POST /edicoes/:id/imagens` — corpo cru (`image/png`, `image/jpeg`, `image/webp`), limite de **2 MB** (`413` acima). Só edição em **rascunho** (`409` se publicada); exige login e CSRF como as demais rotas. O tipo é validado **pelo conteúdo** (assinatura PNG / JPEG `FFD8FF` / WebP `RIFF....WEBP`), nunca pelo cabeçalho ou nome; qualquer outro tipo (inclui SVG, GIF) → `415`. No máximo **60 imagens por edição** (`409`) e, no salvamento, no máximo **30 blocos com imagem** (`400`). Os dois limites são separados porque imagens removidas ou substituídas ficam órfãs por 1 hora (§3.4) e contam no limite de envio; com um único limite de 30 quem experimenta imagens ficaria bloqueado. Resposta `201 {id}`.
+- `POST /edicoes/:id/imagens` — corpo cru (`image/png`, `image/jpeg`, `image/webp`), limite de **1 MB** (`413` acima). Só edição em **rascunho** (`409` se publicada); exige login e CSRF como as demais rotas. O tipo é validado **pelo conteúdo** (assinatura PNG / JPEG `FFD8FF` / WebP `RIFF....WEBP`), nunca pelo cabeçalho ou nome; qualquer outro tipo (inclui SVG, GIF) → `415`. No máximo **60 imagens por edição** (`409`) e, no salvamento, no máximo **30 blocos com imagem** (`400`). Os dois limites são separados porque imagens removidas ou substituídas ficam órfãs por 1 hora (§3.4) e contam no limite de envio; com um único limite de 30 quem experimenta imagens ficaria bloqueado. Resposta `201 {id}`.
 - `GET /edicoes/:id/imagens/:imagemId` — bytes da imagem para a miniatura do editor (`Content-Type` do tipo validado, `X-Content-Type-Options: nosniff`, `Cache-Control: private, max-age=3600`); `404` se a imagem não é dessa edição.
 - Erros seguem o contrato JSON-vs-HTML existente (`erro(res, status, msg)`).
 
@@ -37,13 +37,13 @@ Dentro da transação: as imagens referenciadas pelos blocos que **não pertence
 `contextoExport` (pré-visualização, downloads, publicação) e a rota pública carregam as imagens referenciadas pelos blocos (`images.getMany(edicaoId, ids)`) e as passam a `renderEdition`. A página "em revisão" continua sem blocos nem imagens. Os arquivos publicados (PDF/PNGs) já nascem com a imagem embutida.
 
 ### 3.7 Editor
-Em cada bloco (rascunho): campo **"Imagem (opcional)"** com escolha de arquivo (`accept="image/png,image/jpeg,image/webp"`), miniatura e botão **Remover imagem**. Ao escolher o arquivo, o navegador **reduz** a imagem antes de enviar (lado maior ≤ 1200 px, mantendo PNG se a origem for PNG e usando JPEG 0,85 nos demais), envia, recebe o `id`, mostra a miniatura e marca a edição como alterada (salvamento automático). Edição publicada: só a miniatura, sem botões. Mensagens claras para tipo inválido, arquivo grande demais e falha de envio. Todo texto de erro entra por `textContent`; URLs via `Api.url` (guard de caminhos).
+Em cada bloco (rascunho): campo **"Imagem (opcional)"** com escolha de arquivo (`accept="image/png,image/jpeg,image/webp"`), miniatura e botão **Remover imagem**. Ao escolher o arquivo, o navegador **reduz** a imagem antes de enviar (lado maior ≤ 800 px, mantendo PNG se a origem for PNG e usando JPEG 0,85 nos demais), envia, recebe o `id`, mostra a miniatura e marca a edição como alterada (salvamento automático). Edição publicada: só a miniatura, sem botões. Mensagens claras para tipo inválido, arquivo grande demais e falha de envio. Todo texto de erro entra por `textContent`; URLs via `Api.url` (guard de caminhos).
 
 ## 4. Segurança e limites
 - Só PNG/JPEG/WebP por assinatura do arquivo; **SVG e GIF recusados** (SVG executa script). O `mime` guardado e usado no `data:` vem do tipo **detectado**, nunca do cabeçalho do cliente.
 - Autenticação/CSRF como as demais rotas; só dono de sessão válida envia; só rascunho aceita envio.
 - Posse da imagem verificada no envio, na leitura e no salvamento (uma edição nunca referencia imagem de outra).
-- Limites: 2 MB por imagem, 60 imagens por edição (órfãs recentes contam), 30 blocos com imagem, redução no navegador (1200 px).
+- Limites: 1 MB por imagem, 60 imagens por edição (órfãs recentes contam), 30 blocos com imagem, redução no navegador (800 px). Na prática cabem cerca de 4 a 5 blocos com imagem por página A4; acima disso vale o fluxo existente de "conteúdo será cortado" (409 e confirmação).
 - A página pública continua sem sessão/cookie; a imagem vai embutida no HTML, sem rota pública nova.
 
 ## 5. Testes

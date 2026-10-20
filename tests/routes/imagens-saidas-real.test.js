@@ -49,3 +49,39 @@ test('exportacao real com imagem em 4 tipos de bloco: PDF de 1 pagina e PNGs 124
   assert.equal(pw.readUInt32BE(16), 1080);
   assert.equal(pw.readUInt32BE(20), 1527);
 }, { timeout: 120000 });
+
+// PNG paisagem valido (400x200, cinza) gerado na hora, para o navegador conseguir desenhar.
+function pngPaisagem() {
+  const zlib = require('node:zlib');
+  const W = 400, H = 200;
+  const raw = Buffer.alloc((W + 1) * H, 0x99);
+  for (let y = 0; y < H; y++) raw[y * (W + 1)] = 0;
+  const chunk = (tipo, dados) => {
+    const len = Buffer.alloc(4); len.writeUInt32BE(dados.length);
+    const corpo = Buffer.concat([Buffer.from(tipo), dados]);
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(corpo) >>> 0);
+    return Buffer.concat([len, corpo, crc]);
+  };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 0;
+  return Buffer.concat([PNG_SIG, chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+
+test('exportacao real: 8 blocos com imagem estouram a A4 (fit estouro, 409 sem confirmar, 200 com confirmar=1)', async () => {
+  const edu = await entrar(ctx.app, 'edu', 'senha-edu-123');
+  const id = (await edu.post('/edicoes', { mesAno: '2026-11', titulo: 'Muitas imagens' })).body.id;
+  const up = await edu.agent.post('/edicoes/' + id + '/imagens').set('X-CSRF-Token', edu.csrf).set('Content-Type', 'image/png').set('Accept', 'application/json').send(pngPaisagem());
+  assert.equal(up.status, 201, JSON.stringify(up.body));
+  const blocos = Array.from({ length: 8 }, (_, i) => ({ tipo: 'destaque', dados: { etiqueta: 'E' + i, titulo: 'Destaque ' + i, texto: 'Texto do destaque. '.repeat(6), chamada: 'Saiba mais', imagem: up.body.id } }));
+  const s = await edu.put('/edicoes/' + id, { versao: 1, blocos });
+  assert.equal(s.status, 200, JSON.stringify(s.body));
+  const { edicao, blocos: bs } = await ctx.app.locals.editions.getEdition(id);
+  const [cfg, logo, imagens] = await Promise.all([ctx.app.locals.settings.getSettings(), ctx.app.locals.settings.getLogo(), ctx.app.locals.images.getMany(id, [up.body.id])]);
+  const fit = await exp.fit({ edicao, blocos: bs, settings: cfg, logo, imagens }, { piso: cfg.pisoReducao });
+  assert.equal(fit.estouro, true, JSON.stringify(fit));
+  const r = await edu.get('/edicoes/' + id + '/download/pdf');
+  assert.equal(r.status, 409);
+  assert.equal(r.body.erro, 'conteúdo será cortado');
+  const ok = await edu.agent.get('/edicoes/' + id + '/download/pdf?confirmar=1').buffer(true).parse((res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.subarray(0, 4).toString(), '%PDF');
+}, { timeout: 120000 });

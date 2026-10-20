@@ -69,8 +69,11 @@ test('o mime guardado vem da assinatura, não do cabeçalho', async () => {
   assert.equal(g.headers['content-type'], 'image/png');
 });
 
-test('acima de 2 MB: 413', async () => {
-  const grande = Buffer.concat([PNG_SIG, Buffer.alloc(2 * 1024 * 1024 + 10, 1)]);
+test('exatamente 1 MB passa (201); acima de 1 MB: 413 JSON', async () => {
+  const limite = Buffer.concat([PNG_SIG, Buffer.alloc(1024 * 1024 - PNG_SIG.length, 1)]);
+  assert.equal(limite.length, 1024 * 1024);
+  assert.equal((await enviar(edu, ed1, limite)).status, 201);
+  const grande = Buffer.concat([PNG_SIG, Buffer.alloc(1024 * 1024 + 10, 1)]);
   const r = await enviar(edu, ed1, grande);
   assert.equal(r.status, 413);
   assert.match(r.headers['content-type'], /application\/json/);
@@ -106,6 +109,7 @@ test('limite de 60 imagens por edição: 409 na 61a', async () => {
   const r = await enviar(edu, id, png);
   assert.equal(r.status, 409);
   assert.match(r.body.erro, /60 imagens enviadas/);
+  assert.match(r.body.erro, /salve a edição/);
   assert.match(r.body.erro, /1 hora/);
 });
 

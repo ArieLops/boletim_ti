@@ -175,8 +175,8 @@
   });
 
   // ---------- imagem do bloco ----------
-  const LADO_MAXIMO_IMAGEM = 1200;
-  const BYTES_MAXIMOS_IMAGEM = 2 * 1024 * 1024; // mesmo limite do servidor
+  const LADO_MAXIMO_IMAGEM = 800;
+  const BYTES_MAXIMOS_IMAGEM = 1024 * 1024; // mesmo limite do servidor (1 MB)
 
   function mensagemImagem(li, texto, ruim) {
     const m = li.querySelector('.bloco-imagem-msg');
@@ -220,8 +220,9 @@
   }
   const paraBlob = (canvas, tipo, qualidade) => new Promise((ok) => canvas.toBlob(ok, tipo, qualidade));
 
-  // Reduz (lado maior <= 1200 px, sem ampliar). PNG fica PNG; os demais viram JPEG 0,85.
-  // Se o PNG reduzido ainda passar de 2 MB, tenta JPEG (fundo branco no lugar da transparência).
+  // Reduz (lado maior <= 800 px, sem ampliar). PNG fica PNG; os demais viram JPEG 0,85.
+  // PNG acima de 1 MB cai para JPEG 0,85 (fundo branco no lugar da transparência); JPEG acima de 1 MB
+  // ganha uma segunda tentativa com qualidade 0,7. Se ainda passar, quem chama mostra "grande demais".
   async function reduzirImagem(arquivo) {
     const origem = await decodificar(arquivo);
     const larguraOrigem = origem.naturalWidth || origem.width;
@@ -242,6 +243,7 @@
       ctx.drawImage(origem, 0, 0, d.largura, d.altura);
       blob = await paraBlob(canvas, 'image/jpeg', 0.85);
     }
+    if (blob && blob.type === 'image/jpeg' && blob.size > BYTES_MAXIMOS_IMAGEM) blob = await paraBlob(canvas, 'image/jpeg', 0.7);
     if (origem.close) origem.close();
     return blob;
   }
@@ -252,6 +254,9 @@
     campo.value = '';
     if (!arquivo || travado) return;
     if (!L.tipoImagemPermitido(arquivo.type)) return mensagemImagem(li, 'Use uma imagem PNG, JPEG ou WebP.', true);
+    if (!li.dataset.imagem && itens().filter((x) => x.dataset.imagem).length >= L.MAX_BLOCOS_COM_IMAGEM) {
+      return mensagemImagem(li, 'No máximo ' + L.MAX_BLOCOS_COM_IMAGEM + ' blocos com imagem por edição.', true);
+    }
     const tinhaFoco = document.activeElement === campo;
     campo.disabled = true;
     mensagemImagem(li, 'Enviando imagem…', false);
@@ -259,7 +264,7 @@
       let blob;
       try { blob = await reduzirImagem(arquivo); } catch (e) { blob = null; }
       if (!blob) return mensagemImagem(li, 'Não foi possível ler esta imagem. Tente outro arquivo.', true);
-      if (blob.size > BYTES_MAXIMOS_IMAGEM) return mensagemImagem(li, 'A imagem é grande demais (máximo 2 MB). Escolha uma menor.', true);
+      if (blob.size > BYTES_MAXIMOS_IMAGEM) return mensagemImagem(li, 'A imagem é grande demais (máximo 1 MB). Escolha uma menor.', true);
       let r;
       try {
         r = await fetch(Api.url('/edicoes/' + ID + '/imagens'), {
@@ -281,7 +286,7 @@
         marcarSujo();
         return;
       }
-      const texto = r.status === 413 ? 'A imagem é grande demais (máximo 2 MB).' : (corpo && typeof corpo.erro === 'string' && corpo.erro) || 'Não foi possível enviar a imagem (erro ' + r.status + ').';
+      const texto = r.status === 413 ? 'A imagem é grande demais (máximo 1 MB).' : (corpo && typeof corpo.erro === 'string' && corpo.erro) || 'Não foi possível enviar a imagem (erro ' + r.status + ').';
       mensagemImagem(li, texto.charAt(0).toUpperCase() + texto.slice(1), true);
     } finally {
       campo.disabled = false;
