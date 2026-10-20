@@ -6,6 +6,8 @@ const LOGO_PADRAO = {
   buffer: fs.readFileSync(path.join(__dirname, 'assets', 'logo-padrao.png')),
   mime: 'image/png',
 };
+// Simbolo do SENAR (fixo, canto esquerdo do cabecalho). A logo da direita (conecta TI) e a padrao/configuravel acima.
+const LOGO_SENAR_URI = `data:image/png;base64,${fs.readFileSync(path.join(__dirname, 'assets', 'logo-senar.png')).toString('base64')}`;
 const MIMES_LOGO = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const MESES = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
 
@@ -90,7 +92,7 @@ function renderEdition({ edicao = {}, blocos = [], settings = {}, logo = null, m
   return `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(edicao.titulo || 'Comunicado semanal')}</title><style>${css}</style></head>
 <body>${modo === 'web' ? String(barraHtml || '') : ''}<div class="pagina"><div id="conteudo" data-conteudo>
-<header class="cabecalho"><div class="topo-barra"></div><div class="logo"><img src="${logoUri(logo)}" alt="SENAR"></div></header>
+<header class="cabecalho"><div class="topo-barra"></div><div class="logo-senar"><img src="${LOGO_SENAR_URI}" alt="SENAR"></div><div class="logo"><img src="${logoUri(logo)}" alt="SENAR"></div></header>
 <div class="linha-edicao">${esc(linhaEdicao(edicao))}</div>
 <main class="corpo"><div class="titulo-secao"><h1>${txt(edicao.titulo)}</h1>${subtitulo ? `<p>${txt(subtitulo)}</p>` : ''}</div>${corpoHtml(lista)}${vazio}</main>
 <footer class="rodape"><span class="esq">${esc(rodape)}</span><span class="dir">${esc(email)}</span></footer>

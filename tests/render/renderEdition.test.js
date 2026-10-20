@@ -24,6 +24,13 @@ test('linha de edicao com numero de 3 digitos e mes por extenso', () => {
   assert.ok(html.includes('EDIÇÃO 001 · OUTUBRO/2026'));
 });
 
+test('cabecalho: simbolo do SENAR a esquerda (fixo) e logo conecta TI a direita', () => {
+  const html = renderEdition({ edicao, blocos: [] });
+  assert.ok(html.includes('class="logo-senar"'));
+  assert.ok(html.includes('class="logo"'));
+  assert.ok(html.indexOf('class="logo-senar"') < html.indexOf('class="logo"'));
+});
+
 test('sem blocos: cabecalho e rodape; "Edição vazia" so no preview', () => {
   const html = renderEdition({ edicao, blocos: [] });
   assert.ok(html.includes('TI SENAR-RS'));
